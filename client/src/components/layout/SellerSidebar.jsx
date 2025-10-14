@@ -6,8 +6,11 @@ import {
   Package, 
   Plus, 
   BarChart3, 
+  Users,
   Settings,
-  LogOut
+  LogOut,
+  FileText,
+  Headphones
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,15 +39,31 @@ const SellerSidebar = () => {
       path: '/seller/products',
       icon: Package
     },
+    // {
+    //   name: 'Leads',
+    //   path: '/seller/leads',
+    //   icon: BarChart3
+    // },
     {
-      name: 'Leads',
-      path: '/seller/leads',
-      icon: BarChart3
+      name: 'RFQs',
+      path: '/seller/rfqs',
+      icon: FileText
     },
+    // {
+    //   name: 'All Leads',
+    //   path: '/seller/all-leads',
+    //   icon: Users
+    // },
     {
       name: 'Settings',
       path: '/seller/settings',
       icon: Settings
+    }
+    ,
+    {
+      name: 'Support',
+      path: '/support',
+      icon: Headphones
     }
   ];
 

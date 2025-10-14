@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { adminAPI } from '../../services/apiWithToast';
+import { adminAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { Search, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -21,87 +21,46 @@ const Inquiries = () => {
   // NEW: Pie chart colors
   const COLORS = ['#6366F1', '#22C55E', '#F59E0B', '#EF4444', '#06B6D4', '#8B5CF6', '#84CC16', '#E11D48'];
   
-  // Dummy data for initial development
-  const dummyInquiries = [
-    { _id: '1', inquiryId: 'INQ001', buyerName: 'John Doe', productName: 'Industrial Machinery', message: 'Looking for bulk purchase options', date: '2023-08-15T10:30:00Z', status: 'new' },
-    { _id: '2', inquiryId: 'INQ002', buyerName: 'Jane Smith', productName: 'Organic Cotton Textiles', message: 'Interested in your organic cotton products', date: '2023-08-14T14:20:00Z', status: 'contacted' },
-    { _id: '3', inquiryId: 'INQ003', buyerName: 'Robert Johnson', productName: 'Solar Panels', message: 'Need information about your solar panel efficiency', date: '2023-08-12T09:15:00Z', status: 'closed' },
-    { _id: '4', inquiryId: 'INQ004', buyerName: 'Emily Davis', productName: 'Handcrafted Furniture', message: 'Requesting catalog and pricing for bulk order', date: '2023-08-10T11:45:00Z', status: 'new' },
-    { _id: '5', inquiryId: 'INQ005', buyerName: 'Michael Wilson', productName: 'Spices and Herbs', message: 'Looking for export quality spices', date: '2023-08-08T16:30:00Z', status: 'contacted' },
-  ];
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
+
+  // Fetch inquiries from API
+  const fetchInquiries = async (page = 1) => {
+    try {
+      setLoading(true);
+      const params = {
+        page,
+        limit: 10,
+        sort: sortField,
+        order: sortDirection,
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(productFilter !== 'all' && { product: productFilter }),
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate })
+      };
+      
+      const response = await adminAPI.getInquiries(params);
+      setInquiries(response.data.inquiries);
+      setTotalPages(response.data.totalPages);
+      setCurrentPage(response.data.currentPage);
+      setTotal(response.data.total);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching inquiries:', error);
+      setError('Failed to load inquiries');
+      toast.error('Failed to load inquiries');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // In a real implementation, this would fetch from the API
-    // const fetchInquiries = async () => {
-    //   try {
-    //     setLoading(true);
-    //     const response = await adminAPI.getInquiries({
-    //       sort: sortField,
-    //       order: sortDirection,
-    //       search: searchTerm || undefined,
-    //       status: statusFilter !== 'all' ? statusFilter : undefined,
-    //       product: productFilter !== 'all' ? productFilter : undefined,
-    //       startDate: startDate || undefined,
-    //       endDate: endDate || undefined
-    //     });
-    //     setInquiries(response.data.inquiries);
-    //   } catch (error) {
-    //     toast.error('Failed to load inquiries');
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // };
-
-    // Using dummy data for now
-    setTimeout(() => {
-      // Sort the dummy data based on current sort settings
-      const sortedInquiries = [...dummyInquiries].sort((a, b) => {
-        if (sortField === 'date') {
-          return sortDirection === 'asc' 
-            ? new Date(a.date) - new Date(b.date)
-            : new Date(b.date) - new Date(a.date);
-        } else if (sortField === 'buyerName') {
-          return sortDirection === 'asc'
-            ? a.buyerName.localeCompare(b.buyerName)
-            : b.buyerName.localeCompare(a.buyerName);
-        } else if (sortField === 'inquiryId') {
-          return sortDirection === 'asc'
-            ? a.inquiryId.localeCompare(b.inquiryId)
-            : b.inquiryId.localeCompare(a.inquiryId);
-        }
-        return 0;
-      });
-
-      // Search filter
-      let result = searchTerm
-        ? sortedInquiries.filter(inquiry => 
-            inquiry.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inquiry.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inquiry.inquiryId.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        : sortedInquiries;
-
-      // NEW: Apply additional filters
-      if (statusFilter !== 'all') {
-        result = result.filter(i => i.status === statusFilter);
-      }
-      if (productFilter !== 'all') {
-        result = result.filter(i => i.productName === productFilter);
-      }
-      if (startDate) {
-        const sd = new Date(startDate);
-        result = result.filter(i => new Date(i.date) >= sd);
-      }
-      if (endDate) {
-        const ed = new Date(endDate);
-        ed.setHours(23, 59, 59, 999);
-        result = result.filter(i => new Date(i.date) <= ed);
-      }
-
-      setInquiries(result);
-      setLoading(false);
-    }, 500);
-  }, [sortField, sortDirection, searchTerm, statusFilter, productFilter, startDate, endDate]);
+    fetchInquiries(currentPage);
+  }, [sortField, sortDirection, searchTerm, statusFilter, productFilter, startDate, endDate, currentPage]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -132,88 +91,16 @@ const Inquiries = () => {
     return sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
   };
 
-  // NEW: Product options for filter
-  const productOptions = useMemo(() => {
-    return Array.from(new Set(dummyInquiries.map(d => d.productName)));
-  }, []);
+  // Product options for filter
+   const productOptions = useMemo(() => {
+     return Array.from(new Set(inquiries.map(d => d.product?.name).filter(Boolean)));
+   }, [inquiries]);
 
-  useEffect(() => {
-    // In a real implementation, this would fetch from the API
-    // const fetchInquiries = async () => {
-    //   try {
-    //     setLoading(true);
-    //     const response = await adminAPI.getInquiries({
-    //       sort: sortField,
-    //       order: sortDirection,
-    //       search: searchTerm || undefined,
-    //       status: statusFilter !== 'all' ? statusFilter : undefined,
-    //       product: productFilter !== 'all' ? productFilter : undefined,
-    //       startDate: startDate || undefined,
-    //       endDate: endDate || undefined
-    //     });
-    //     setInquiries(response.data.inquiries);
-    //   } catch (error) {
-    //     toast.error('Failed to load inquiries');
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // };
-
-    // Using dummy data for now
-    setTimeout(() => {
-      // Sort the dummy data based on current sort settings
-      const sortedInquiries = [...dummyInquiries].sort((a, b) => {
-        if (sortField === 'date') {
-          return sortDirection === 'asc' 
-            ? new Date(a.date) - new Date(b.date)
-            : new Date(b.date) - new Date(a.date);
-        } else if (sortField === 'buyerName') {
-          return sortDirection === 'asc'
-            ? a.buyerName.localeCompare(b.buyerName)
-            : b.buyerName.localeCompare(a.buyerName);
-        } else if (sortField === 'inquiryId') {
-          return sortDirection === 'asc'
-            ? a.inquiryId.localeCompare(b.inquiryId)
-            : b.inquiryId.localeCompare(a.inquiryId);
-        }
-        return 0;
-      });
-
-      // Search filter
-      let result = searchTerm
-        ? sortedInquiries.filter(inquiry => 
-            inquiry.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inquiry.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            inquiry.inquiryId.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        : sortedInquiries;
-
-      // NEW: Apply additional filters
-      if (statusFilter !== 'all') {
-        result = result.filter(i => i.status === statusFilter);
-      }
-      if (productFilter !== 'all') {
-        result = result.filter(i => i.productName === productFilter);
-      }
-      if (startDate) {
-        const sd = new Date(startDate);
-        result = result.filter(i => new Date(i.date) >= sd);
-      }
-      if (endDate) {
-        const ed = new Date(endDate);
-        ed.setHours(23, 59, 59, 999);
-        result = result.filter(i => new Date(i.date) <= ed);
-      }
-
-      setInquiries(result);
-      setLoading(false);
-    }, 500);
-  }, [sortField, sortDirection, searchTerm, statusFilter, productFilter, startDate, endDate]);
-
-  // NEW: Chart data computed from filtered inquiries
+   // Chart data computed from filtered inquiries
   const productChartData = useMemo(() => {
     const counts = inquiries.reduce((acc, cur) => {
-      acc[cur.productName] = (acc[cur.productName] || 0) + 1;
+      const product = cur.product?.name || 'Unknown';
+      acc[product] = (acc[product] || 0) + 1;
       return acc;
     }, {});
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
@@ -407,23 +294,28 @@ const Inquiries = () => {
                   {inquiries.map((inquiry) => (
                     <tr key={inquiry._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{inquiry.inquiryId}</div>
+                        <div className="text-sm font-medium text-gray-900">{inquiry._id.slice(-6).toUpperCase()}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{inquiry.buyerName}</div>
+                        <div className="text-sm text-gray-900">{inquiry.buyerName || inquiry.buyerEmail}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{inquiry.productName}</div>
+                        <div className="text-sm text-gray-500">{inquiry.product?.name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-500 truncate max-w-xs">{inquiry.message}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{formatDate(inquiry.date)}</div>
+                        <div className="text-sm text-gray-500">{formatDate(inquiry.createdAt)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${inquiry.status === 'new' ? 'bg-green-100 text-green-800' : inquiry.status === 'contacted' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          inquiry.status === 'new' ? 'bg-green-100 text-green-800' : 
+                          inquiry.status === 'contacted' ? 'bg-blue-100 text-blue-800' : 
+                          inquiry.status === 'responded' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {inquiry.status ? inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1) : 'New'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -434,6 +326,88 @@ const Inquiries = () => {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing <span className="font-medium">{((currentPage - 1) * 10) + 1}</span> to{' '}
+                      <span className="font-medium">{Math.min(currentPage * 10, total)}</span> of{' '}
+                      <span className="font-medium">{total}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      {[...Array(totalPages)].map((_, i) => {
+                        const page = i + 1;
+                        if (page === currentPage || page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                page === currentPage
+                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (page === currentPage - 2 || page === currentPage + 2) {
+                          return <span key={page} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>;
+                        }
+                        return null;
+                      })}
+                      <button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-600">{error}</p>
+            <button 
+              onClick={() => fetchInquiries(currentPage)}
+              className="mt-2 text-red-600 hover:text-red-800 underline"
+            >
+              Try again
+            </button>
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ import rfqRoutes from './rfq.js';
 import adminRoutes from './admin.js';
 import messageRoutes from './message.js';
 import notificationRoutes from './notification.js';
+import ticketRoutes from './tickets.js';
 
 export {
   authRoutes as AuthRouter,
@@ -17,5 +18,6 @@ export {
   rfqRoutes as RFQRouter,
   adminRoutes as AdminRouter,
   messageRoutes as MessageRouter,
-  notificationRoutes as NotificationRouter
+  notificationRoutes as NotificationRouter,
+  ticketRoutes as TicketRouter
 };

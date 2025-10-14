@@ -12,42 +12,27 @@ const Buyers = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // Dummy data for initial development
-  const dummyBuyers = [
-    { _id: '1', name: 'John Doe', email: 'john@example.com', phone: '+91 9876543210', country: 'India', company: 'ABC Corp', status: 'active', totalQuotes: 5, lastLogin: '2023-08-15T10:30:00Z' },
-    { _id: '2', name: 'Jane Smith', email: 'jane@example.com', phone: '+91 9876543211', country: 'India', company: 'XYZ Ltd', status: 'active', totalQuotes: 3, lastLogin: '2023-08-14T14:20:00Z' },
-    { _id: '3', name: 'Robert Johnson', email: 'robert@example.com', phone: '+91 9876543212', country: 'USA', company: 'Global Inc', status: 'inactive', totalQuotes: 0, lastLogin: '2023-07-20T09:15:00Z' },
-    { _id: '4', name: 'Emily Davis', email: 'emily@example.com', phone: '+91 9876543213', country: 'UK', company: 'Euro Traders', status: 'active', totalQuotes: 8, lastLogin: '2023-08-16T11:45:00Z' },
-    { _id: '5', name: 'Michael Wilson', email: 'michael@example.com', phone: '+91 9876543214', country: 'Australia', company: 'Pacific Exports', status: 'active', totalQuotes: 2, lastLogin: '2023-08-10T16:30:00Z' },
-  ];
-
   useEffect(() => {
-    // In a real implementation, this would fetch from the API
-    // const fetchBuyers = async () => {
-    //   try {
-    //     setLoading(true);
-    //     const response = await adminAPI.getBuyers({
-    //       page: currentPage,
-    //       status: statusFilter !== 'all' ? statusFilter : undefined,
-    //       search: searchTerm || undefined
-    //     });
-    //     setBuyers(response.data.buyers);
-    //     setTotalPages(response.data.totalPages);
-    //   } catch (error) {
-    //     toast.error('Failed to load buyers');
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // };
+    const fetchBuyers = async () => {
+      try {
+        setLoading(true);
+        const response = await adminAPI.getBuyers({
+          page: currentPage,
+          limit: 10,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          search: searchTerm || undefined
+        });
+        setBuyers(response.data.buyers);
+        setTotalPages(response.data.totalPages);
+      } catch (error) {
+        toast.error('Failed to load buyers');
+        console.error('Error fetching buyers:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    // fetchBuyers();
-    
-    // Using dummy data for now
-    setTimeout(() => {
-      setBuyers(dummyBuyers);
-      setTotalPages(1);
-      setLoading(false);
-    }, 500);
+    fetchBuyers();
   }, [currentPage, statusFilter, searchTerm]);
 
   const handleSearch = (e) => {
@@ -130,11 +115,11 @@ const Buyers = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotes</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Activity</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -151,10 +136,10 @@ const Buyers = () => {
                         <div className="text-sm text-gray-500">{buyer.phone}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{buyer.country}</div>
+                        <div className="text-sm text-gray-500">{buyer.address || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{buyer.company}</div>
+                        <div className="text-sm text-gray-500">{buyer.companyName || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${buyer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -162,10 +147,10 @@ const Buyers = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {buyer.totalQuotes}
+                        0
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{formatDate(buyer.lastLogin)}</div>
+                        <div className="text-sm text-gray-500">{formatDate(buyer.updatedAt || buyer.createdAt)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button className="text-indigo-600 hover:text-indigo-900 mr-3">View</button>

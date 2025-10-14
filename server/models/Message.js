@@ -9,7 +9,7 @@ const MessageSchema = new mongoose.Schema({
   receiverId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Not required for admin messages
   },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,8 +29,18 @@ const MessageSchema = new mongoose.Schema({
   },
   messageType: {
     type: String,
-    enum: ['inquiry', 'follow_up', 'general'],
+    enum: ['inquiry', 'follow_up', 'general', 'support_query', 'admin_reply'],
     default: 'inquiry'
+  },
+  senderType: {
+    type: String,
+    enum: ['buyer', 'seller', 'admin'],
+    required: false
+  },
+  receiverType: {
+    type: String,
+    enum: ['buyer', 'seller', 'admin'],
+    required: false
   },
   isRead: {
     type: Boolean,

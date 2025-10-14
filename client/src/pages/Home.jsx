@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Filter, MapPin, Star, Eye, ChevronDown } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Eye, ChevronDown, ChevronRight, Shield, Truck, CreditCard, Headphones, BadgeCheck } from 'lucide-react';
 import { productAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import { useToast } from '../context/ToastContext';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
@@ -16,6 +16,7 @@ const Home = () => {
     sortBy: 'createdAt'
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState(null); // NEW: Track expanded category
 
   // Dummy auth (replace with real auth context)
   const [user, setUser] = useState({ name: "Khushboo Gupta", email: "demo@test.com" });
@@ -66,15 +67,15 @@ const Home = () => {
 
   const handleLogout = () => {
     setUser(null);
-    toast.success("Logged out successfully");
-    navigate("/");
+    toast.success('Logged out successfully');
+    navigate('/');
   };
 
   const ProductCard = ({ product }) => (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="relative">
         <img
-          src={product.images?.[0] || '/api/placeholder/300/200'}
+          src={product.images?.[0] || 'https://placehold.co/300x200'}
           alt={product.title || product.name}
           className="w-full h-48 object-cover"
         />
@@ -119,186 +120,515 @@ const Home = () => {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ✅ Navbar */}
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link to="/" className="text-xl font-bold text-blue-600">
-            Indoorsy
-          </Link>
-          
-          <nav className="flex items-center gap-6">
-            <Link to="/membership" className="text-gray-700 hover:text-blue-600 font-medium">
-              Membership
-            </Link>
+  // NEW: Sidebar categories + hero slides
+  const sidebarCategories = [
+    {
+      name: 'Machinery & Parts',
+      subcategories: ['CNC Machines', 'Plastic Machinery', 'Food Processing', 'Textile Machinery', 'Industrial Equipment']
+    },
+    {
+      name: 'Electronics & Electricals',
+      subcategories: ['LED Lights', 'Cables & Wires', 'Switches', 'Electronic Components', 'Power Equipment']
+    },
+    {
+      name: 'Textiles & Garments',
+      subcategories: ['Fabrics', 'Readymade Garments', 'Home Textiles', 'Yarn', 'Textile Machinery']
+    },
+    {
+      name: 'Furniture & Decor',
+      subcategories: ['Home Furniture', 'Office Furniture', 'Outdoor Furniture', 'Decor Items', 'Lighting']
+    },
+    {
+      name: 'Automobile & Spares',
+      subcategories: ['Auto Parts', 'Motorcycle Parts', 'Tires & Wheels', 'Batteries', 'Lubricants']
+    },
+    {
+      name: 'Construction & Hardware',
+      subcategories: ['Building Materials', 'Hardware Tools', 'Plumbing', 'Electrical Supplies', 'Safety Equipment']
+    },
+    {
+      name: 'Food & Beverages',
+      subcategories: ['Processed Foods', 'Beverages', 'Spices & Seasonings', 'Dairy Products', 'Snacks']
+    },
+    {
+      name: 'Health & Beauty',
+      subcategories: ['Cosmetics', 'Personal Care', 'Health Supplements', 'Medical Equipment', 'Ayurvedic Products']
+    },
+    {
+      name: 'Handicrafts & Gifts',
+      subcategories: ['Handicrafts', 'Decorative Items', 'Gifts & Novelties', 'Artwork', 'Traditional Crafts']
+    },
+    {
+      name: 'Stationery & Office',
+      subcategories: ['Office Supplies', 'Writing Instruments', 'Paper Products', 'Office Equipment', 'School Supplies']
+    },
+    {
+      name: 'IT Services',
+      subcategories: ['Software Development', 'Web Design', 'Digital Marketing', 'IT Consulting', 'Mobile Apps']
+    },
+    {
+      name: 'More Categories',
+      subcategories: []
+    }
+  ];
+
+  const promoSlides = [
+    { title: 'Embrace Eco-Friendly Living', subtitle: 'Sustainable products for modern homes', image: 'https://placehold.co/720x320' },
+    { title: 'Trusted Global Suppliers', subtitle: 'Verified manufacturers & exporters', image: 'https://placehold.co/720x320' },
+    { title: 'Quality You Can Count On', subtitle: 'Best prices, reliable delivery', image: 'https://placehold.co/720x320' },
+  ];
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSlide((s) => (s + 1) % promoSlides.length), 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  const CategorySidebar = () => (
+    <div className="bg-white border rounded-lg divide-y">
+      <div className="px-4 py-3 font-semibold">All Categories</div>
+      <ul className="text-sm">
+        {sidebarCategories.map((category) => (
+          <li key={category.name}>
+            <button
+              className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50"
+              onClick={() => {
+                if (category.name === 'More Categories') {
+                  navigate('/categories');
+                } else if (category.subcategories.length > 0) {
+                  setExpandedCategory(expandedCategory === category.name ? null : category.name);
+                } else {
+                  // Navigate to products page with selected category
+                  navigate(`/products?category=${encodeURIComponent(category.name)}`);
+                }
+              }}
+            >
+              <span className="truncate">{category.name}</span>
+              {category.name === 'More Categories' ? (
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown 
+                  className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                    expandedCategory === category.name ? 'rotate-180' : ''
+                  }`} 
+                />
+              )}
+            </button>
             
+            {/* Subcategories */}
+            {category.subcategories.length > 0 && expandedCategory === category.name && (
+              <ul className="bg-gray-50 border-t">
+                {category.subcategories.map((sub) => (
+                  <li key={sub}>
+                    <button
+                      className="w-full text-left px-8 py-1.5 text-xs text-gray-600 hover:bg-gray-100 hover:text-blue-600"
+                      onClick={() => {
+                        // Navigate to products page with selected subcategory
+                        navigate(`/products?category=${encodeURIComponent(sub)}`);
+                      }}
+                    >
+                      {sub}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
+  const HeroCarousel = () => (
+    <div className="relative bg-white border rounded-lg overflow-hidden">
+      <img src={promoSlides[slide].image} alt={promoSlides[slide].title} className="w-full h-[260px] object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      <div className="absolute bottom-4 left-4 text-white">
+        <h2 className="text-2xl font-bold">{promoSlides[slide].title}</h2>
+        <p className="text-sm text-gray-100">{promoSlides[slide].subtitle}</p>
+      </div>
+      <div className="absolute bottom-3 right-3 flex gap-2">
+        {promoSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setSlide(i)}
+            className={`w-2.5 h-2.5 rounded-full ${i === slide ? 'bg-white' : 'bg-white/50'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  const RightMiniCards = () => (
+    <div className="space-y-3">
+      <div className="bg-white border rounded-lg p-4">
+        <h3 className="font-semibold mb-3">You may like</h3>
+        <div className="space-y-3">
+          {(products || []).slice(0, 4).map(p => (
+            <Link key={p._id} to={`/product/${p._id}`} className="flex items-center gap-3 group">
+              <img src={p.images?.[0] || 'https://placehold.co/72x72'} className="w-14 h-14 object-cover rounded border" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium group-hover:text-blue-600 truncate">{p.title || p.name}</div>
+                <div className="text-xs text-gray-500 truncate">{p.category || 'Category'}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-lg p-4">
+        <h3 className="font-semibold mb-2">Announcements</h3>
+        <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
+          <li>Membership launch offer</li>
+          <li>Upcoming Expo 2025 registrations</li>
+        </ul>
+      </div>
+    </div>
+  );
+
+  const CategoryTiles = () => {
+    const tiles = [
+      { name: 'Machinery', category: 'Machinery & Parts', image: '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg' },
+      { name: 'Electronics', category: 'Electronics & Electricals', image: '/images/categories/phone.png' },
+      { name: 'Textiles', category: 'Textiles & Garments', image: '/images/categories/Untitled design (8).png' },
+      { name: 'Furniture', category: 'Furniture & Decor', image: '/images/categories/Untitled design (6).png' },
+      { name: 'Automobile', category: 'Automobile & Spares', image: '/images/categories/bicycle.png' },
+      { name: 'Construction', category: 'Construction & Hardware', image: '/images/categories/Untitled design (7).png' },
+      { name: 'Food & Bev', category: 'Food & Beverages', image: '/images/categories/love bottle.jpg' },
+      { name: 'Beauty', category: 'Health & Beauty', image: '/images/categories/love bottle 3.jpg' },
+      { name: 'Handicrafts', category: 'Handicrafts & Gifts', image: '/images/categories/Untitled design (3).png' },
+      { name: 'Stationery', category: 'Stationery & Office', image: '/images/categories/love bottle 4.jpg' },
+      { name: 'IT Services', category: 'IT Services', image: '/images/categories/phone.png' },
+      // Empty slots to push More to next row
+      { name: '', category: null, isEmpty: true },
+      { name: '', category: null, isEmpty: true },
+      { name: '', category: null, isEmpty: true },
+      { name: '', category: null, isEmpty: true },
+      { name: 'More', category: null, image: '/images/categories/chemical&rawmaterial.png' }
+    ];
+    
+    const handleCategoryClick = (tile) => {
+      if (tile.name === 'More') {
+        navigate('/categories');
+      } else {
+        // Navigate to products page with selected category
+        navigate(`/products?category=${encodeURIComponent(tile.category)}`);
+      }
+    };
+    
+    return (
+      <section className="max-w-7xl mx-auto px-4 mt-6">
+        <div className="bg-white border rounded-lg p-4">
+          <h3 className="text-lg font-semibold mb-3">Explore Categories</h3>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+            {tiles.map((tile, index) => {
+              if (tile.isEmpty) {
+                return <div key={index} className="invisible"></div>;
+              }
+              return (
+                <button
+                  key={tile.name}
+                  onClick={() => handleCategoryClick(tile)}
+                  className="group w-full"
+                >
+                  <div className="border rounded-lg p-3 bg-white hover:shadow-sm transition text-center cursor-pointer">
+                    <img src={tile.image || '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg'} alt={tile.name} className="w-12 h-12 mx-auto mb-2 object-cover rounded" />
+                    <div className="text-xs font-medium text-gray-700 group-hover:text-blue-600 truncate">{tile.name}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  const EasySourcing = () => (
+    <section className="max-w-7xl mx-auto px-4 mt-6">
+      <div className="bg-white border rounded-lg grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+        <div className="p-6">
+          <h3 className="text-xl font-semibold mb-2">Easy Sourcing</h3>
+          <p className="text-gray-600 text-sm mb-4">Tell us what you need and get quotations from verified suppliers.</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigate('/buyer/rfqs');
+            }}
+            className="space-y-3"
+          >
+            <input className="w-full border rounded px-3 py-2" placeholder="What are you looking for?" />
+            <div className="grid grid-cols-2 gap-3">
+              <input className="w-full border rounded px-3 py-2" placeholder="Quantity" />
+              <input className="w-full border rounded px-3 py-2" placeholder="Units" />
+            </div>
+            <input className="w-full border rounded px-3 py-2" placeholder="Your Email" type="email" />
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Get Quotations</button>
+          </form>
+        </div>
+        <div className="relative">
+      <img src="https://placehold.co/640x360" alt="Sourcing" className="w-full h-full object-cover" />
+        </div>
+      </div>
+    </section>
+  );
+
+  const SecuredTrading = () => (
+    <section className="max-w-7xl mx-auto px-4 mt-6">
+      <div className="rounded-lg bg-gradient-to-r from-red-600 to-red-500 text-white p-5 flex items-center justify-between">
+        <div>
+          <div className="text-lg font-semibold">Secured Trading Service</div>
+          <div className="text-sm text-red-100">Payment protection, dispute resolution & on-time delivery assurance</div>
+        </div>
+        <button className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded border border-white/30">Learn More</button>
+      </div>
+    </section>
+  );
+
+  const SourcingSolutions = () => (
+    <section className="max-w-7xl mx-auto px-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { icon: Shield, title: 'Verified Suppliers', desc: 'Work with vetted manufacturers' },
+          { icon: Truck, title: 'Customer Support', desc: ' 24-hour support' },
+          { icon: CreditCard, title: 'Secure Payments', desc: 'Escrow-like protection' },
+        ].map((i) => (
+          <Link 
+            key={i.title} 
+            to={i.title === 'Customer Support' ? '/support' : '#'}
+            className="bg-white border rounded-lg p-5 flex items-start gap-3 hover:shadow-md transition-shadow duration-200 block"
+          >
+            <i.icon className="w-8 h-8 text-blue-600" />
+            <div>
+              <div className="font-semibold">{i.title}</div>
+              <div className="text-sm text-gray-600">{i.desc}</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+      <div className="mt-4 bg-white border rounded-lg p-4 flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-700"><BadgeCheck className="w-5 h-5 text-green-600" /> Buyer Protection</div>
+        <Link to="/support" className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"><Headphones className="w-5 h-5 text-blue-600" /> 24x7 Support</Link>
+        <Link to="/track-ticket" className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"><Eye className="w-5 h-5 text-blue-600" /> Track Ticket</Link>
+        <div className="flex items-center gap-2 text-sm text-gray-700"><Shield className="w-5 h-5 text-yellow-600" /> Dispute Resolution</div>
+      </div>
+    </section>
+  );
+
+  // const TradeShows = () => (
+  //   <section className="max-w-7xl mx-auto px-4 mt-6">
+  //     <div className="bg-white border rounded-lg p-4">
+  //       <h3 className="text-lg font-semibold mb-3">Trade Shows</h3>
+  //       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  //         {[1,2,3].map(i => (
+  //           <div key={i} className="border rounded-lg overflow-hidden">
+//             <img src="https://placehold.co/480x200" className="w-full h-32 object-cover" alt="trade" />
+  //             <div className="p-3">
+  //               <div className="font-medium">Expo {2025 + i} — Global Trade Fair</div>
+  //               <div className="text-xs text-gray-500">Pre-register now for early access</div>
+  //             </div>
+  //           </div>
+  //         ))}
+  //       </div>
+  //     </div>
+  //   </section>
+  // );
+
+  return (
+    <div className="min-h-screen bg-[#fefcfa]">
+      {/* ✅ Navbar */}
+      <header className="bg-[#2f3284] shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <Link to="/" className="text-xl font-bold text-white">Indoorsy</Link>
+          <nav className="flex items-center gap-6">
+            {user && (
+              <Link to="/membership-plans" className="text-[#ff6600] hover:text-white font-medium">Membership</Link>
+            )}
             {user ? (
               <div className="relative group">
-                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center cursor-pointer">
+                <div className="w-10 h-10 rounded-full bg-[#ff6600] text-white flex items-center justify-center cursor-pointer">
                   {user.name?.charAt(0).toUpperCase()}
                 </div>
-                <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-lg border opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition">
+                <div className="absolute right-0 mt-0 w-40 bg-white shadow-lg rounded-lg border opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition">
                   <Link 
-                    to="/dashboard"
+                    to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'} 
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
                     Dashboard
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Logout
-                  </button>
+                  <button onClick={() => { setUser(null); toast.success('Logged out successfully'); navigate('/'); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
                 </div>
               </div>
             ) : (
-              <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium">
-                Login
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link to="/login" className="text-white hover:text-[#ff6600] font-medium">Sign In</Link>
+                <Link to="/register" className="bg-[#ff6600] hover:bg-[#ff8533] text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign Up</Link>
+              </div>
             )}
           </nav>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-[#2F3284] to-[#2F3254] text-white py-16">   
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4">
-              Find Quality Products
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              Connect with verified suppliers and manufacturers
-            </p>
-            
-            <div className="max-w-2xl mx-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <input
-                  type="text"
-                  placeholder="Search products, categories, or suppliers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
+      {/* Top Section: Categories | Hero | Right mini cards */}
+      <section className="py-6">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <aside className="hidden lg:block lg:col-span-3">
+            <CategorySidebar />
+          </aside>
+
+          <div className="lg:col-span-6">
+            <HeroCarousel />
+          </div>
+
+          <aside className="lg:col-span-3">
+            <RightMiniCards />
+          </aside>
+        </div>
+      </section>
+
+      {/* Explore Categories grid */}
+      <CategoryTiles />
+
+      {/* Selected Trending Products */}
+      <section id="products-section" className="max-w-7xl mx-auto px-4 mt-6">
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold">Selected Trending Products</h3>
+            <Link to="/products" className="text-sm text-blue-600 hover:underline">View more</Link>
+          </div>
+          {loading ? (
+            <div className="py-12 text-center text-gray-500">Loading products...</div>
+          ) : products.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {products.slice(0, 8).map((p) => (
+                <div key={p._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                  <div className="relative">
+  <img src={p.images?.[0] || 'https://placehold.co/300x200'} alt={p.title || p.name} className="w-full h-40 object-cover" />
+                    <div className="absolute top-2 right-2 bg-white rounded-full p-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="font-medium text-sm line-clamp-2">{p.title || p.name}</div>
+                    <div className="text-xs text-gray-500 mt-1">{p.category || 'Category'}</div>
+                    <div className="mt-3 flex gap-2">
+                      <Link to={`/product/${p._id}`} className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded text-xs text-center">View</Link>
+                      <button className="bg-green-600 text-white py-1.5 px-3 rounded text-xs">Inquire</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border rounded-lg p-10 text-center text-gray-600">Koi product nahi mila. Filters/Keywords change karke try karein.</div>
+          )}
+        </div>
+      </section>
+
+      {/* Easy Sourcing */}
+      {/* <EasySourcing /> */}
+
+      {/* Secured Trading Service */}
+      {/* <SecuredTrading /> */}
+
+      {/* Sourcing Solutions & Trusted Service */}
+      <SourcingSolutions />
+
+      {/* Trade Shows */}
+      {/* <TradeShows /> */}
+
+      {/* Footer */}
+      <footer className="bg-[#ff6600] text-black">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Company Info */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">Niryat Business</h3>
+              <p className="text-gray-800 text-sm leading-relaxed">
+                India's leading B2B marketplace connecting manufacturers, suppliers, and buyers worldwide. 
+                Discover quality products and trusted business partners.
+              </p>
+              <div className="flex space-x-4">
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                </a>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ✅ Filters + Products */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Top bar: Filters toggle and Clear */}
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setShowFilters((s) => !s)}
-            className="inline-flex items-center gap-2 bg-white border px-3 py-2 rounded-md hover:bg-gray-50"
-          >
-            <Filter className="h-4 w-4" />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button>
-
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-gray-700">Sort by:</label>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-              className="bg-white border px-3 py-2 rounded-md"
-            >
-              <option value="createdAt">Newest</option>
-              <option value="priceRange.min">Price: Low to High</option>
-              <option value="priceRange.max">Price: High to Low</option>
-            </select>
-
-            <button
-              onClick={clearFilters}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Clear filters
-            </button>
-          </div>
-        </div>
-
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="bg-white border rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Category</label>
-                <input
-                  type="text"
-                  value={filters.category}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                  placeholder="e.g. Electronics"
-                  className="w-full border rounded-md px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Min Price</label>
-                <input
-                  type="number"
-                  value={filters.minPrice}
-                  onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                  placeholder="0"
-                  className="w-full border rounded-md px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Max Price</label>
-                <input
-                  type="number"
-                  value={filters.maxPrice}
-                  onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                  placeholder="100000"
-                  className="w-full border rounded-md px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Location</label>
-                <input
-                  type="text"
-                  value={filters.location}
-                  onChange={(e) => handleFilterChange('location', e.target.value)}
-                  placeholder="City/State/Pincode"
-                  className="w-full border rounded-md px-3 py-2"
-                />
-              </div>
+            {/* Quick Links */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold">Quick Links</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="/categories" className="text-gray-900 hover:text-blue-700 transition-colors">Categories</a></li>
+                <li><a href="/products" className="text-gray-900 hover:text-blue-700 transition-colors">Products</a></li>
+                <li><a href="/suppliers" className="text-gray-900 hover:text-blue-700 transition-colors">Suppliers</a></li>
+                <li><a href="/rfq" className="text-gray-900 hover:text-blue-700 transition-colors">Post RFQ</a></li>
+                <li><a href="/membership" className="text-gray-900 hover:text-blue-700 transition-colors">Membership Plans</a></li>
+              </ul>
             </div>
-          </div>
-        )}
 
-        {/* Products Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="w-full h-48 bg-gray-200 animate-pulse" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
-                  <div className="h-3 bg-gray-200 rounded w-5/6 animate-pulse" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse" />
+            {/* Services */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold">Services</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Trade Assurance</a></li>
+                <li><a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Logistics Service</a></li>
+                <li><a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Inspection Service</a></li>
+                <li><a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Payment Solutions</a></li>
+                <li><a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Customer Support</a></li>
+              </ul>
+            </div>
+
+            {/* Contact Info */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold">Contact Us</h4>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-2">
+                  <MapPin className="w-4 h-4 text-gray-900 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-900">123 Business District, Mumbai, Maharashtra 400001, India</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 24 24"> 
+                    <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                  </svg>
+                  <span className="text-gray-900">+91 98765 43210</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                  </svg>
+                  <span className="text-gray-900">info@niryatbusiness.com</span>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        ) : products?.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((p) => (
-              <ProductCard key={p._id} product={p} />
-            ))}
+
+          {/* Bottom Section */}
+          <div className="border-t border-gray-700 mt-8 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <div className="text-sm text-white">
+                © 2024 Niryat Business. All rights reserved.
+              </div>
+              <div className="flex space-x-6 text-sm">
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Privacy Policy</a>
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Terms of Service</a>
+                <a href="#" className="text-gray-900 hover:text-blue-700 transition-colors">Cookie Policy</a>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="bg-white border rounded-lg p-10 text-center text-gray-600">
-            Koi product nahi mila. Filters/Keywords change karke try karein.
-          </div>
-        )}
-      </div>
+        </div>
+      </footer>
     </div>
   );
 };

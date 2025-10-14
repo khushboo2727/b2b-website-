@@ -8,6 +8,8 @@ import MessageLog from './MessageLog.js';
 import Message from './Message.js';
 import Notification from './Notification.js';
 import OtpToken from './OtpToken.js';
+import ChatRoom from './ChatRoom.js';
+import ChatMessage from './ChatMessage.js';
 
 export {
   User,
@@ -19,5 +21,7 @@ export {
   MessageLog,
   Message,
   Notification,
-  OtpToken
+  OtpToken,
+  ChatRoom,
+  ChatMessage
 };

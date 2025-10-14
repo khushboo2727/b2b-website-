@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import { useToast } from './ToastContext';
 
 const AuthContext = createContext();
 
@@ -43,19 +43,20 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, warning: showWarning, info: showInfo, default: showInfo };
+
   const login = async (credentials) => {
     try {
       setLoading(true);
       const response = await authAPI.login(credentials);
       const { token, user: userData } = response.data;
 
-      // If seller is not approved, DO NOT store token/user or set authenticated
       if (userData.role === 'seller' && userData.status !== 'active') {
-        toast('Your seller account is pending approval. You are not logged in.', { icon: '⏳' });
+        toast.info('Your seller account is pending approval. You are not logged in.');
         return { success: true, user: userData, redirect: '/seller/pending-approval' };
       }
 
-      // Store token and user data only for approved users (or non-seller roles)
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
 
@@ -79,9 +80,8 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.register(userData);
       const { token, user: newUser } = response.data;
 
-      // If seller is not approved (pending), DO NOT store token/user or set authenticated
       if (newUser.role === 'seller' && newUser.status !== 'active') {
-        toast('Registration successful! Your seller account is pending approval. You are not logged in.', { icon: '⏳' });
+        toast.info('Registration successful! Your seller account is pending approval. You are not logged in.');
         return {
           success: true,
           user: newUser,
@@ -89,7 +89,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Otherwise, store token and set session
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(newUser));
 
@@ -99,7 +98,6 @@ export const AuthProvider = ({ children }) => {
       toast.success('Registration successful!');
       return { success: true, user: newUser };
     } catch (error) {
-      // Enhanced error handling to show server validation errors
       const serverErrors = error.response?.data?.errors;
       if (Array.isArray(serverErrors) && serverErrors.length) {
         const msg = serverErrors.map(e => e.msg).join(', ');

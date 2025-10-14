@@ -130,6 +130,17 @@ export const authAPI = {
       () => api.get('/auth/status-by-email', { params: { email } }),
       `status-by-email-${email}`
     ),
+  // NEW: OTP request & verify
+  requestOtp: (payload) =>
+    makeApiCall(
+      () => api.post('/auth/otp/request', payload),
+      'auth-otp-request'
+    ),
+  verifyOtp: ({ otpId, code }) =>
+    makeApiCall(
+      () => api.post('/auth/otp/verify', { otpId, code }),
+      'auth-otp-verify'
+    ),
 };
 
 // Product API functions
@@ -202,6 +213,12 @@ export const sellerAPI = {
       () => api.post('/seller/profile', profileData),
       'seller-profile-update',
       'Profile updated successfully!'
+    ),
+  // NEW: GST verification (server stub validates format)
+  verifyGST: ({ gstNumber, businessName }) =>
+    makeApiCall(
+      () => api.post('/seller/verify-gst', { gstNumber, businessName }),
+      'seller-verify-gst'
     ),
 };
 

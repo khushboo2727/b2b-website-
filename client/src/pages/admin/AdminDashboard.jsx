@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, MessageSquare, TrendingUp, Clock } from 'lucide-react';
+import { Users, UserCheck, UserX, MessageSquare, TrendingUp, Clock, Headphones } from 'lucide-react';
 import { adminAPI } from '../../services/apiWithToast';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/layout/AdminLayout';
+import AdminMessages from '../../components/admin/AdminMessages';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -20,6 +21,9 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, info: showInfo, warning: showWarning };
 
   const fetchDashboardData = async () => {
     try {
@@ -204,6 +208,15 @@ const AdminDashboard = () => {
           )}
         </div>
 
+        {/* Seller Messages Section */}
+        <div className="mt-8">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Seller Messages</h2>
+            <p className="text-gray-600">View and respond to seller inquiries</p>
+          </div>
+          <AdminMessages />
+        </div>
+
         {/* Quick Actions */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link to="/admin/buyers" className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
@@ -222,6 +235,12 @@ const AdminDashboard = () => {
             <MessageSquare className="h-8 w-8 text-purple-600 mb-2" />
             <h3 className="font-medium text-gray-900">View Inquiries</h3>
             <p className="text-sm text-gray-500">Track all platform inquiries</p>
+          </Link>
+          
+          <Link to="/admin/support-tickets" className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+            <Headphones className="h-8 w-8 text-orange-600 mb-2" />
+            <h3 className="font-medium text-gray-900">Support Tickets</h3>
+            <p className="text-sm text-gray-500">Manage customer support requests</p>
           </Link>
           
           <Link to="/admin/analytics" className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">

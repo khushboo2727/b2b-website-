@@ -18,14 +18,17 @@ import {
   Mail as MailIcon,
   MailOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import { leadAPI, productAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 
 const Leads = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +117,10 @@ const Leads = () => {
 
   const canViewContactInfo = (lead) => {
     return membershipPlan === 'Premium' || membershipPlan === 'Basic';
+  };
+
+  const handleBuySingleLead = () => {
+    navigate('/membership-plans');
   };
 
   const toggleContactInfo = (leadId) => {
@@ -260,22 +267,34 @@ const Leads = () => {
 
       {/* Actions */}
       <div className="flex gap-2 pt-4 border-t">
-        {lead.status === 'open' ? (
+        {/* Show Buy Single Lead button if membership is Free and lead is not read */}
+        {membershipPlan === 'Free' && !lead.isRead ? (
           <button
-            onClick={() => updateLeadStatus(lead._id, 'closed')}
+            onClick={handleBuySingleLead}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
           >
-            <CheckCircle className="h-4 w-4" />
-            Mark as Closed
+            <CreditCard className="h-4 w-4" />
+            Buy Single Lead
           </button>
         ) : (
-          <button
-            onClick={() => updateLeadStatus(lead._id, 'open')}
-            className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors duration-200 text-sm font-medium"
-          >
-            <Clock className="h-4 w-4" />
-            Reopen
-          </button>
+          /* Show normal status buttons for paid plans or read leads */
+          lead.status === 'open' ? (
+            <button
+              onClick={() => updateLeadStatus(lead._id, 'closed')}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Mark as Closed
+            </button>
+          ) : (
+            <button
+              onClick={() => updateLeadStatus(lead._id, 'open')}
+              className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors duration-200 text-sm font-medium"
+            >
+              <Clock className="h-4 w-4" />
+              Reopen
+            </button>
+          )
         )}
         
         {canViewContactInfo(lead) && lead.buyerContact?.email && (

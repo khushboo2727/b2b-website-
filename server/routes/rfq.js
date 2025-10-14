@@ -43,6 +43,19 @@ router.post('/',
       
       const relevantSellerIds = [...new Set(relevantProducts.map(p => p.sellerId._id.toString()))];
 
+      // Short-circuit: if no relevant sellers, return message
+      if (relevantSellerIds.length === 0) {
+        return res.status(200).json({
+          msg: 'RFQ submitted, but no active sellers found in this category',
+          rfqs: [],
+          totalSellers: 0,
+          category: product.category
+        });
+      }
+
+      // Compute default validUntil if not provided
+      const validUntil = req.body.validUntil ? new Date(req.body.validUntil) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
       // Create RFQs for each relevant seller and send email notifications
       const rfqPromises = relevantSellerIds.map(async (sellerId) => {
         const newRFQ = new RFQ({
@@ -55,7 +68,8 @@ router.post('/',
           expectedDeliveryDate,
           message,
           buyerContact,
-          category: product.category
+          category: product.category,
+          validUntil
         });
         
         const savedRFQ = await newRFQ.save();
@@ -543,6 +557,114 @@ router.get('/:id/messages',
     } catch (err) {
       console.error(err.message);
       res.status(500).send('Server Error');
+    }
+  }
+);
+
+// @route   GET /api/rfq/:id/open
+// @desc    Open RFQ tracking via email token (no auth)
+router.get('/:id/open', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ msg: 'Missing token' });
+    }
+
+    // Verify token
+    let payload;
+    try {
+      payload = (await import('jsonwebtoken')).default.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ msg: 'Invalid or expired token' });
+    }
+
+    const { rfqId, sellerId, type } = payload || {};
+    if (type !== 'rfq_open' || rfqId !== req.params.id) {
+      return res.status(400).json({ msg: 'Token mismatch' });
+    }
+
+    const rfq = await RFQ.findById(req.params.id);
+    if (!rfq) {
+      return res.status(404).json({ msg: 'RFQ not found' });
+    }
+
+    // Only the intended seller (recipient) can mark open
+    if (rfq.sellerId.toString() !== sellerId) {
+      return res.status(403).json({ msg: 'Not authorized for this RFQ' });
+    }
+
+    // If already inactive, return info
+    if (!rfq.isActive) {
+      return res.json({ msg: 'RFQ inactive', isActive: false, openCount: rfq.openCount });
+    }
+
+    // Prevent duplicate opens by same seller
+    const alreadyOpened = rfq.openedBy?.some(ob => ob.sellerId.toString() === sellerId);
+    if (!alreadyOpened) {
+      rfq.openedBy = rfq.openedBy || [];
+      rfq.openedBy.push({ sellerId });
+      rfq.openCount = (rfq.openCount || 0) + 1;
+    }
+
+    // Deactivate at 5 unique seller opens
+    if ((rfq.openCount || 0) >= 5) {
+      rfq.isActive = false;
+      rfq.status = 'closed';
+    }
+
+    await rfq.save();
+
+    return res.json({ success: true, isActive: rfq.isActive, openCount: rfq.openCount });
+  } catch (err) {
+    console.error('RFQ open track error:', err);
+    return res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// @route   POST /api/rfq/:id/open
+// @desc    Mark RFQ as opened by authenticated seller (dashboard view)
+// @access  Private (Seller)
+router.post('/:id/open',
+  authenticateUser,
+  authorizeRoles(['seller']),
+  async (req, res) => {
+    try {
+      const rfq = await RFQ.findById(req.params.id);
+      if (!rfq) {
+        return res.status(404).json({ msg: 'RFQ not found' });
+      }
+
+      // Only seller assigned to this RFQ can mark open
+      const sellerId = req.user.user.id;
+      if (rfq.sellerId.toString() !== sellerId) {
+        return res.status(403).json({ msg: 'Not authorized for this RFQ' });
+      }
+
+      // If already inactive, return info
+      if (!rfq.isActive) {
+        return res.json({ msg: 'RFQ inactive', isActive: false, openCount: rfq.openCount });
+      }
+
+      // Prevent duplicate opens by same seller
+      const alreadyOpened = rfq.openedBy?.some(ob => ob.sellerId.toString() === sellerId);
+      if (!alreadyOpened) {
+        rfq.openedBy = rfq.openedBy || [];
+        rfq.openedBy.push({ sellerId });
+        rfq.openCount = (rfq.openCount || 0) + 1;
+      }
+
+      // Deactivate at 5 unique seller opens
+      if ((rfq.openCount || 0) >= 5) {
+        rfq.isActive = false;
+        rfq.status = 'closed';
+      }
+
+      await rfq.save();
+
+      return res.json({ success: true, isActive: rfq.isActive, openCount: rfq.openCount });
+    } catch (err) {
+      console.error('RFQ open track (POST) error:', err);
+      return res.status(500).json({ msg: 'Server Error' });
     }
   }
 );

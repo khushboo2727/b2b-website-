@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { sellerAPI } from '../../services/api';
 import SellerLayout from '../../components/layout/SellerLayout';
-import toast from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
 import { Save, Upload } from 'lucide-react';
 
 const SellerProfile = () => {

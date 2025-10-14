@@ -1,0 +1,12 @@
+# Images Directory
+
+This directory is for storing static images used in the application.
+
+You can organize images in subdirectories like:
+- /categories/ - Category related images
+- /products/ - Product images
+- /banners/ - Banner and promotional images
+- /icons/ - Icon files
+- /backgrounds/ - Background images
+
+Supported formats: .jpg, .jpeg, .png, .gif, .svg, .webp

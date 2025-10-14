@@ -192,7 +192,7 @@ function ProductDetail() {
             </div>
             <div className="relative flex-1 flex">
               <img
-                src={images[selectedImage] || '/api/placeholder/600/600'}
+                src={images[selectedImage] || 'https://placehold.co/600x600'}
                 alt={product?.title || 'Product Image'}
                 className="w-full max-h-[500px] object-contain rounded"
               />

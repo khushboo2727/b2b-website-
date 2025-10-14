@@ -17,7 +17,7 @@ const leadSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'closed'],
+    enum: ['open', 'closed', 'inactive'],
     default: 'open'
   },
   sharedWith: [{
@@ -47,6 +47,56 @@ const leadSchema = new mongoose.Schema({
   },
   budget: {
     type: Number
+  },
+  // NEW: Quote distribution system fields
+  distributedTo: [{
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    distributedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  purchasedBy: [{
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    purchasedAt: {
+      type: Date,
+      default: Date.now
+    },
+    amount: {
+      type: Number,
+      required: true
+    }
+  }],
+  viewedBy: [{
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    viewedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  maxViews: {
+    type: Number,
+    default: 5
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  category: {
+    type: String,
+    required: true
   }
 }, {
   timestamps: true

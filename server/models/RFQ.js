@@ -19,7 +19,8 @@ const RFQSchema = new mongoose.Schema({
   rfqNumber: {
     type: String,
     unique: true,
-    required: true
+    required: true,
+    default: () => `RFQ${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
   },
   quantity: {
     type: Number,
@@ -73,7 +74,8 @@ const RFQSchema = new mongoose.Schema({
   },
   validUntil: {
     type: Date,
-    required: true
+    required: true,
+    default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
   },
   category: {
     type: String,
@@ -82,6 +84,27 @@ const RFQSchema = new mongoose.Schema({
   specifications: {
     type: String
   },
+  // --- New open tracking fields ---
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  openCount: {
+    type: Number,
+    default: 0
+  },
+  openedBy: [{
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    openedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // --- End open tracking ---
   attachments: [{
     filename: String,
     url: String,
@@ -125,10 +148,10 @@ const RFQSchema = new mongoose.Schema({
 });
 
 // Generate unique RFQ number
-RFQSchema.pre('save', async function(next) {
+RFQSchema.pre('validate', async function(next) {
   if (!this.rfqNumber) {
-    const count = await mongoose.model('RFQ').countDocuments();
-    this.rfqNumber = `RFQ${String(count + 1).padStart(6, '0')}`;
+    // Use time-based + random suffix to avoid duplicate key errors on concurrent inserts
+    this.rfqNumber = `RFQ${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
   }
   next();
 });
@@ -137,7 +160,7 @@ RFQSchema.pre('save', async function(next) {
 RFQSchema.index({ buyerId: 1, createdAt: -1 });
 RFQSchema.index({ sellerId: 1, status: 1, createdAt: -1 });
 RFQSchema.index({ productId: 1 });
-RFQSchema.index({ rfqNumber: 1 });
+// RFQSchema.index({ rfqNumber: 1 }); // removed to avoid duplicate index; 'rfqNumber' field already has unique: true
 RFQSchema.index({ validUntil: 1 });
 
 // Add index for category-based queries

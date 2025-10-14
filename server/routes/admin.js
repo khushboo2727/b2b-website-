@@ -1,6 +1,7 @@
 import express from 'express';
 import { User } from '../models/index.js';
 import { Lead } from '../models/index.js';
+import { Message } from '../models/index.js';
 import { authenticateUser } from '../middleware/auth.js';
 import { SellerProfile } from '../models/index.js';
 import { sendSellerRejectionEmail } from '../services/emailService.js';
@@ -378,6 +379,111 @@ router.get('/inquiries', async (req, res) => {
     });
   } catch (error) {
     console.error('Get inquiries error:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/admin/messages
+// @desc    Get all messages from sellers to admin
+// @access  Private (Admin only)
+router.get('/messages', async (req, res) => {
+  try {
+    const messages = await Message.find({
+      receiverType: 'admin'
+    })
+    .populate('senderId', 'name email companyName')
+    .sort({ createdAt: -1 });
+
+    // Group messages by sender
+    const conversations = {};
+    messages.forEach(message => {
+      const senderId = message.senderId._id.toString();
+      if (!conversations[senderId]) {
+        conversations[senderId] = {
+          seller: message.senderId,
+          messages: [],
+          lastMessage: null,
+          unreadCount: 0
+        };
+      }
+      conversations[senderId].messages.push(message);
+      if (!message.isRead) {
+        conversations[senderId].unreadCount++;
+      }
+      if (!conversations[senderId].lastMessage || 
+          message.createdAt > conversations[senderId].lastMessage.createdAt) {
+        conversations[senderId].lastMessage = message;
+      }
+    });
+
+    res.json(Object.values(conversations));
+  } catch (error) {
+    console.error('Get admin messages error:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/admin/messages/:sellerId
+// @desc    Get conversation with specific seller
+// @access  Private (Admin only)
+router.get('/messages/:sellerId', async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+
+    const messages = await Message.find({
+      $or: [
+        { senderId: sellerId, receiverType: 'admin' },
+        { senderType: 'admin', receiverId: sellerId }
+      ]
+    })
+    .populate('senderId', 'name email')
+    .sort({ createdAt: 1 });
+
+    // Mark messages as read
+    await Message.updateMany(
+      { senderId: sellerId, receiverType: 'admin', isRead: false },
+      { isRead: true }
+    );
+
+    res.json({ messages });
+  } catch (error) {
+    console.error('Get conversation error:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/admin/messages/:sellerId/reply
+// @desc    Send reply to seller
+// @access  Private (Admin only)
+router.post('/messages/:sellerId/reply', async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const { message } = req.body;
+
+    // Validate seller exists
+    const seller = await User.findById(sellerId);
+    if (!seller || seller.role !== 'seller') {
+      return res.status(400).json({ message: 'Invalid seller' });
+    }
+
+  // Create admin reply
+  const adminReply = new Message({
+      senderId: req.user.user.id,
+      receiverId: sellerId,
+      content: message,
+      messageType: 'admin_reply',
+      senderType: 'admin',
+      receiverType: 'seller'
+  });
+
+    await adminReply.save();
+
+    res.status(201).json({
+      message: 'Reply sent successfully',
+      data: adminReply
+    });
+  } catch (error) {
+    console.error('Send admin reply error:', error.message);
     res.status(500).json({ message: 'Server error' });
   }
 });

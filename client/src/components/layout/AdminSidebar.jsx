@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  Headphones
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,6 +37,11 @@ const AdminSidebar = () => {
       name: 'View Inquiries',
       path: '/admin/inquiries',
       icon: MessageSquare
+    },
+    {
+      name: 'Support Tickets',
+      path: '/admin/support-tickets',
+      icon: Headphones
     },
     {
       name: 'Analytics',

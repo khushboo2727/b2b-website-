@@ -1,10 +1,11 @@
 import React, { useMemo, useState , useEffect} from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
 import { CheckCircle, ArrowLeft, ArrowRight, ShieldCheck, Upload, Building2, FileText, Globe, Image as ImageIcon } from 'lucide-react';
-import { authAPI } from '../../services/apiWithToast';
+import { authAPI as authApiWithToast, sellerAPI } from '../../services/apiWithToast';
 
-const categories = ['Textiles', 'Electronics', 'Food & Beverages', 'Automobiles', 'Furniture', 'Handicrafts', 'Health & Beauty', 'Stationery', 'Construction', 'IT Services'];
+import { categoryNames } from '../../constants/categories';
+const categories = categoryNames;
 const businessTypes = ['Proprietorship', 'Partnership', 'Pvt. Ltd.', 'LLP'];
 
 const initialState = {
@@ -19,6 +20,7 @@ const initialState = {
   // Step 1: Basic
   companyName: '',
   gstNumber: '',
+  iec: '',
   gstVerified: false,
   businessType: '',
   businessCategory: '',
@@ -80,12 +82,42 @@ function SellerRegister() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, info: showInfo, warning: showWarning };
   // Add password visibility toggles
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Add IEC error state to fix ReferenceError and enable inline validation UI
+  const [iecError, setIecError] = useState('');
   const progress = useMemo(() => Math.round((current) * 100 / (steps.length - 1)), [current]);
 
+ const addVideoFromFile = async (file) => {
+    // Check file size (max 50MB)
+    const maxSizeMB = 50;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`Video size should be less than ${maxSizeMB}MB`);
+      return;
+    }
 
+    // Check video duration (max 1 minute)
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = async () => {
+      window.URL.revokeObjectURL(video.src);
+      if (video.duration > 60) {
+        toast.error('Video duration should be maximum 1 minute');
+        return;
+      }
+      
+      // If validation passes, convert to base64 and add to state
+      const url = await toBase64(file);
+      setData(prev => ({ ...prev, videos: [...(prev.videos || []), { url, tag: 'premises', title: 'Premises video' }] }));
+      toast.success('Video added successfully!');
+    };
+    
+    video.src = URL.createObjectURL(file);
+  };
   // Prefill Logic
   useEffect(() => {
     // Priority: location.state.prefill -> localStorage.sellerRegistrationDraft
@@ -109,26 +141,6 @@ function SellerRegister() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-
-
-
-  const addVideoFromFile = async (file) => {
-    // Simple base64 reader (same pattern as images if used)
-    const toBase64 = (f) => new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(f);
-    });
-    const url = await toBase64(file);
-    setData(prev => ({ ...prev, videos: [...(prev.videos || []), { url, tag: 'premises', title: 'Premises video' }] }));
-  };
-
-
-
-
-
   const handleInput = (path, value) => {
     setData(prev => {
       const clone = structuredClone(prev);
@@ -147,30 +159,77 @@ function SellerRegister() {
     reader.readAsDataURL(file);
   });
 
+
+  // Update requestOtp to call backend
   const requestOtp = async () => {
-    // DEV: Bypass OTP sending
-    handleInput('otpId', 'DEV_BYPASS');
-    toast.success('DEV: OTP step bypassed (no email sent)');
+    try {
+      if (!data.email && !data.phone) {
+        toast.error('Please enter email or phone');
+        return;
+      }
+      const res = await authApiWithToast.requestOtp({ name: data.name, email: data.email, phone: data.phone });
+      const otpId = res?.data?.otpId;
+      if (otpId) {
+        handleInput('otpId', otpId);
+        const target = data.email ? `email (${data.email})` : `phone (${data.phone})`;
+        toast.success(`OTP sent to your ${target}`);
+      } else {
+        toast.error(res?.data?.message || 'Failed to request OTP');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to request OTP');
+    }
   };
-
+  
+  // Update verifyOtp to call backend
   const verifyOtp = async () => {
-    // DEV: Bypass OTP verification
-    handleInput('otpVerified', true);
-    toast.success('DEV: OTP verification bypassed');
-    setCurrent(1);
+    try {
+      if (!data.otpId) {
+        toast.error('Please generate OTP first');
+        return;
+      }
+      if (!data.otp) {
+        toast.error('Please enter the OTP');
+        return;
+      }
+      const res = await authApiWithToast.verifyOtp({ otpId: data.otpId, code: data.otp });
+      const verified = res?.data?.verified;
+      if (verified) {
+        handleInput('otpVerified', true);
+        toast.success('OTP verified');
+        setCurrent(1);
+      } else {
+        toast.error('Invalid OTP');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to verify OTP');
+    }
   };
-
+  
+  // Update verifyGST to call backend
   const verifyGST = async () => {
-    // DEV: Bypass GST verification
-    handleInput('gstVerified', true);
-    toast.success('DEV: GST verification bypassed');
+    try {
+      if (!data.gstNumber) {
+        toast.error('Please enter GST number');
+        return;
+      }
+      const res = await sellerAPI.verifyGST({ gstNumber: data.gstNumber, businessName: data.companyName });
+      const valid = res?.data?.valid;
+      if (valid) {
+        handleInput('gstVerified', true);
+        toast.success('GST verified');
+      } else {
+        toast.error(res?.data?.message || 'GST not verified');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'GST verification failed');
+    }
   };
 
   const next = () => {
     // step-wise validations
     if (current === 0) {
-      // DEV: skip OTP check
-      // previously: if (!data.otpVerified) return toast.error('Please verify OTP to continue');
+      if (!data.otpVerified) return toast.error('Please verify OTP to continue');
     }
     if (current === 1) {
       if (!data.companyName) return toast.error('Company name is required');
@@ -220,6 +279,29 @@ function SellerRegister() {
   };
 
   const submit = async () => {
+    // IEC format validation (client-side)
+    const iecVal = (data.iec || '').trim();
+    if (!/^[0-9]{10}$/.test(iecVal)) {
+      setIecError('Please enter a valid 10-digit IEC number.');
+      return;
+    }
+    // Server-side IEC format validation
+    try {
+      const vres = await fetch('/api/verify-iec-format', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iec: iecVal })
+      });
+      const vjson = await vres.json();
+      if (!vjson.valid) {
+        setIecError(vjson.message || 'Please enter a valid 10-digit IEC number.');
+        return;
+      }
+    } catch (e) {
+      setIecError('Please enter a valid 10-digit IEC number.');
+      return;
+    }
+
     if (data.images.length < 2) return toast.error('At least 2 business images are required');
     const hasLandmark = data.images.some(i => i.tag === 'landmark');
     const hasBoard = data.images.some(i => i.tag === 'board');
@@ -236,12 +318,16 @@ function SellerRegister() {
         email: data.email,
         phone: data.phone,
         password: data.password,
+        iec: iecVal,
 
         companyName: data.companyName,
         gstNumber: data.gstNumber,
         businessType: data.businessType,
         businessCategory: data.businessCategory,
         description: data.description,
+
+        // include seller role
+        sellerRole: data.sellerRole,
 
         businessEmail: data.businessEmail,
         alternatePhone: data.alternatePhone,
@@ -260,23 +346,14 @@ function SellerRegister() {
         yearsInBusiness: Number(data.yearsInBusiness || 0),
         totalEmployees: Number(data.totalEmployees || 0),
 
-        sellerRole: data.sellerRole, // NEW
-        address: {
-          street: data.address?.street,
-          city: data.address?.city,
-          state: data.address?.state,
-          pincode: data.address?.pincode,
-          country: data.address?.country,
-          district: data.address?.district, // NEW
-        },
-        images: data.images || [],
-        videos: data.videos || []
+        images: data.images,
+        videos: data.videos,
       };
 
       // Check if email already exists and is suspended -> resubmit instead of new register
       let shouldResubmit = false;
       try {
-        const s = await authAPI.getStatusByEmail(data.email);
+        const s = await authApiWithToast.getStatusByEmail(data.email);
         const exists = Boolean(s?.data?.exists);
         const status = s?.data?.status;
         if (exists && status === 'suspended') {
@@ -344,15 +421,15 @@ function SellerRegister() {
 
         {/* Progress */}
         <div className="w-full bg-gray-200 rounded h-2 mb-6">
-          <div className="bg-[#ff6600] h-2 rounded" style={{ width: `${progress}%` }} />
+          <div className="bg-blue-600 h-2 rounded" style={{ width: `${progress}%` }} />
         </div>
 
         {/* Step Indicators */}
         <div className="grid grid-cols-7 gap-2 mb-8">
           {steps.map((s, idx) => (
-            <div key={s.key} className={`text-center text-xs ${idx <= current ? 'text-[#ff6600]' : 'text-gray-400'}`}>
-              <div className={`mx-auto w-7 h-7 rounded-full flex items-center justify-center ${idx <= current ? 'bg-[#f1cdb4]' : 'bg-gray-100'}`}>
-                {idx < current ? <CheckCircle className="w-4 h-4 text-[#ff6600]" /> : idx === current ? <span className="font-bold">{idx+1}</span> : <span>{idx+1}</span>}
+            <div key={s.key} className={`text-center text-xs ${idx <= current ? 'text-blue-600' : 'text-gray-400'}`}>
+              <div className={`mx-auto w-7 h-7 rounded-full flex items-center justify-center ${idx <= current ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                {idx < current ? <CheckCircle className="w-4 h-4 text-blue-600" /> : idx === current ? <span className="font-bold">{idx+1}</span> : <span>{idx+1}</span>}
               </div>
               <div className="mt-1">{s.label}</div>
             </div>
@@ -376,19 +453,8 @@ function SellerRegister() {
                 <input className="w-full border rounded px-3 py-2" value={data.phone} onChange={e => handleInput('phone', e.target.value)} />
               </div>
             </div>
-            <div className="flex gap-3">
-              <button type="button" className="px-4 py-2 bg-[#ff6600] text-white rounded" onClick={requestOtp}>Generate OTP</button>
-              <input className="border rounded px-3 py-2" placeholder="Enter OTP" value={data.otp} onChange={e => handleInput('otp', e.target.value)} />
-              <button type="button" className="px-4 py-2 bg-green-600 text-white rounded" onClick={verifyOtp}>Verify OTP</button>
-            </div>
-            {data.otpVerified && (
-              <div className="flex items-center text-green-700">
-                <ShieldCheck className="w-5 h-5 mr-2" /> OTP Verified
-              </div>
-            )}
-
-             <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Register user as</label>
+            <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Register user as   <span className="text-red-500">*</span></label>
           <select
             className="w-full border rounded px-3 py-2"
             value={data.sellerRole}
@@ -401,7 +467,22 @@ function SellerRegister() {
             <option value="Merchant & Manufacturer Exporter">Merchant & Manufacturer Exporter</option>
             <option value="Only Manufacturer">Only Manufacturer</option>
           </select>
-        </div>
+           </div>
+
+            <div className="flex gap-3">
+              <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded" onClick={requestOtp}>Generate OTP</button>
+              <input className="border rounded px-3 py-2" placeholder="Enter OTP" value={data.otp} onChange={e => handleInput('otp', e.target.value)} />
+              <button type="button" className="px-4 py-2 bg-green-600 text-white rounded" onClick={verifyOtp}>Verify OTP</button>
+            </div>
+            {data.otpVerified && (
+              <div className="flex items-center text-green-700">
+                <ShieldCheck className="w-5 h-5 mr-2" /> OTP Verified
+              </div>
+            )}
+
+          
+          
+       
           </div>
         )}
 
@@ -414,15 +495,9 @@ function SellerRegister() {
                 </label>
                 <input className="w-full border rounded px-3 py-2" value={data.companyName} onChange={e => handleInput('companyName', e.target.value)} />
               </div>
-              <div>
-                <label className="text-sm">GST Number</label>
-                <div className="flex gap-2">
-                  <input className="w-full border rounded px-3 py-2 uppercase" value={data.gstNumber} onChange={e => handleInput('gstNumber', e.target.value.toUpperCase())} />
-                  <button type="button" className="px-3 py-2 border rounded" onClick={verifyGST}>Verify GST</button>
-                </div>
-                {data.gstVerified && <div className="text-green-600 text-sm mt-1">GST Verified</div>}
-              </div>
-              <div>
+
+
+               <div>
                 <label className="text-sm">
                   Business Type <span className="text-red-500">*</span>
                 </label>
@@ -431,6 +506,64 @@ function SellerRegister() {
                   {businessTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
+                            
+              <div>
+                <label className="text-sm">GST Number</label>
+                <div className="flex gap-2">
+                  <input
+                    className="w-[70%] border rounded px-3 py-2 uppercase text-sm h-10"
+                    value={data.gstNumber}
+                    onChange={e => handleInput('gstNumber', e.target.value.toUpperCase())}
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-1 border rounded text-sm h-10 bg-green-600 text-white"
+                    onClick={verifyGST}
+                  >
+                    Verify GST
+                  </button>
+                </div>
+                {data.gstVerified && (
+                  <div className="text-green-600 text-sm mt-1">GST Verified</div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm">IEC Code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 0512345671"
+                  className="w-full border rounded px-3 py-2 h-10"
+                  value={data.iec}
+                  aria-invalid={Boolean(iecError)}
+                  aria-describedby={iecError ? 'iec-error' : undefined}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+                    handleInput('iec', v);
+                    if (v.length > 0 && !/^[0-9]{10}$/.test(v)) {
+                      setIecError('Please enter a valid 10-digit IEC number.');
+                    } else {
+                      setIecError('');
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/\s/g, '');
+                    if (v && !/^[0-9]{10}$/.test(v)) {
+                      setIecError('Please enter a valid 10-digit IEC number.');
+                    } else {
+                      setIecError('');
+                    }
+                  }}
+                />
+                {iecError && (
+                  <p id="iec-error" role="alert" aria-live="assertive" className="mt-1 text-sm text-red-600">
+                    {iecError}
+                  </p>
+                )}
+              </div>
+             
               <div>
                 <label className="text-sm">
                   Business Category <span className="text-red-500">*</span>
@@ -649,69 +782,110 @@ function SellerRegister() {
               <input type="file" accept=".jpg,.jpeg,.png" onChange={e => addImage(e, 'other')} />
             </div>
 
-                  <div className="pt-4 border-t">
-          <h3 className="text-md font-semibold mb-2">Video premises entrance / any manufacturing facility</h3>
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="video/*"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) addVideoFromFile(f); }}
-              className="block"
-            />
-            <span className="text-sm text-gray-500">or paste video URL</span>
-          </div>
-          <div className="mt-2">
-            <input
-              type="url"
-              placeholder="https://..."
-              className="w-full border rounded px-3 py-2"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const v = e.currentTarget.value.trim();
-                  if (v) {
-                    setData(prev => ({ ...prev, videos: [...(prev.videos || []), { url: v, tag: 'premises', title: 'Premises video' }] }));
-                    e.currentTarget.value = '';
-                  }
-                }
-              }}
-            />
-          </div>
-          {/* <div className="pt-4 border-t"> */}
-            {/* <h3 className="text-md font-semibold mb-2">Video premises entrance / any manufacturing facility</h3> */}
-            {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {data.videos.map((video, idx) => (
-                <div key={idx} className="border rounded p-2">
-                  <div className="text-xs mb-1 uppercase">{video.tag}</div>
-                  <video alt={video.tag} src={video.url} className="w-full h-24 object-cover rounded" />  
-                  <button className="mt-2 text-xs text-red-600" onClick={() => removeImage(idx)}>Remove</button>
+             {/* ... existing image upload UI ... */}
+
+            <div className="pt-4 border-t">
+              <h3 className="text-md font-semibold mb-2">
+                Video premises entrance / any manufacturing facility
+              </h3>
+
+              {/* Video Upload Options */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) addVideoFromFile(f);
+                    }}
+                    className="block"
+                  />
+                  <span className="text-sm text-gray-500">or paste video URL</span>
                 </div>
-              ))}
-            </div> */}
-          {/* </div> */}
-
-
-              <div className="mt-3 space-y-2">
-            {(data.videos || []).map((v, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-gray-50 border rounded p-2">
-                <div className="text-sm truncate">{v.url?.slice(0, 80)}</div>
-                <button
-                  type="button"
-                  className="text-red-600"
-                  onClick={() =>
-                    setData(prev => ({ ...prev, videos: prev.videos.filter((_, i) => i !== idx) }))
-                  }
-                >
-                  Remove
-                </button>
+                <p className="text-xs text-gray-500">
+                  Video requirements: Maximum 1 minute duration, up to 50MB file size
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )}
 
-      {/* )}   */}
+              {/* Video URL Input */}
+              <div className="mt-2">
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  className="w-full border rounded px-3 py-2"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const v = e.currentTarget.value.trim();
+                      if (v) {
+                        setData((prev) => ({
+                          ...prev,
+                          videos: [
+                            ...(prev.videos || []),
+                            { url: v, tag: "premises", title: "Premises video" },
+                          ],
+                        }));
+                        e.currentTarget.value = "";
+                      }
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Image Preview Grid */}
+              {data.images?.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                  {data.images.map((img, idx) => (
+                    <div key={idx} className="border rounded p-2">
+                      <div className="text-xs mb-1 uppercase">{img.tag}</div>
+                      <img
+                        alt={img.tag}
+                        src={img.url}
+                        className="w-full h-24 object-cover rounded"
+                      />
+                      <button
+                        type="button"
+                        className="mt-2 text-xs text-red-600"
+                        onClick={() => removeImage(idx)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Video Preview List */}
+              {data.videos?.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {data.videos.map((v, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between bg-gray-50 border rounded p-2"
+                    >
+                      <div className="text-sm truncate">
+                        {v.title || v.url?.slice(0, 80)}
+                      </div>
+                      <button
+                        type="button"
+                        className="text-red-600 text-sm"
+                        onClick={() =>
+                          setData((prev) => ({
+                            ...prev,
+                            videos: prev.videos.filter((_, i) => i !== idx),
+                          }))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="mt-8 flex items-center justify-between">

@@ -3,14 +3,15 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff, Shield } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
 
 const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, info: showInfo, warning: showWarning };
   const {
     register,
     handleSubmit,
@@ -21,7 +22,7 @@ const AdminLogin = () => {
     console.log('Form data:', data);
     setIsLoading(true);
     try {
-      const result = await login(data); // Pass the entire data object, not separate parameters
+      const result = await login(data);
       
       if (result.user.role !== 'admin') {
         toast.error('Access denied. Admin credentials required.');

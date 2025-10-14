@@ -8,10 +8,13 @@ const router = express.Router();
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { receiverId, productId, leadId, content, messageType } = req.body;
-    const senderId = req.user.userId;
+    const senderId = req.user.user?.id;
 
     // Validate sender is buyer
     const sender = await User.findById(senderId);
+    if (!sender) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     if (sender.role !== 'buyer') {
       return res.status(403).json({ message: 'Only buyers can send messages' });
     }
@@ -54,11 +57,14 @@ router.post('/', authenticateToken, async (req, res) => {
 // Get messages for seller (received messages)
 router.get('/received', authenticateToken, async (req, res) => {
   try {
-    const sellerId = req.user.userId;
+    const sellerId = req.user.user?.id;
     const { page = 1, limit = 20, isRead, productId } = req.query;
 
     // Validate user is seller
     const seller = await User.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
     if (seller.role !== 'seller') {
       return res.status(403).json({ message: 'Only sellers can access received messages' });
     }
@@ -95,11 +101,14 @@ router.get('/received', authenticateToken, async (req, res) => {
 // Get messages for buyer (sent messages)
 router.get('/sent', authenticateToken, async (req, res) => {
   try {
-    const buyerId = req.user.userId;
+    const buyerId = req.user.user?.id;
     const { page = 1, limit = 20, receiverId } = req.query;
 
     // Validate user is buyer
     const buyer = await User.findById(buyerId);
+    if (!buyer) {
+      return res.status(404).json({ message: 'Buyer not found' });
+    }
     if (buyer.role !== 'buyer') {
       return res.status(403).json({ message: 'Only buyers can access sent messages' });
     }
@@ -135,7 +144,7 @@ router.get('/sent', authenticateToken, async (req, res) => {
 router.patch('/:messageId/read', authenticateToken, async (req, res) => {
   try {
     const { messageId } = req.params;
-    const userId = req.user.userId;
+  const userId = req.user.user?.id;
 
     const message = await Message.findById(messageId);
     if (!message) {
@@ -154,6 +163,78 @@ router.patch('/:messageId/read', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error marking message as read:', error);
     res.status(500).json({ message: 'Failed to mark message as read' });
+  }
+});
+
+// Admin Routes
+
+// Send message to admin (Seller to Admin)
+router.post('/admin', authenticateToken, async (req, res) => {
+  try {
+    const { message, type } = req.body;
+    const senderId = req.user.user?.id;
+
+    // Validate sender is seller
+    const sender = await User.findById(senderId);
+    if (!sender) {
+      return res.status(404).json({ message: 'Sender not found' });
+    }
+    if (sender.role !== 'seller') {
+      return res.status(403).json({ message: 'Only sellers can send messages to admin' });
+    }
+
+    // Create message to admin
+    const adminMessage = new Message({
+      senderId,
+      receiverId: null, // Admin messages don't have specific receiver
+      content: message,
+      messageType: type || 'support_query',
+      senderType: 'seller',
+      receiverType: 'admin'
+    });
+
+    await adminMessage.save();
+
+    res.status(201).json({
+      message: 'Message sent to admin successfully',
+      data: adminMessage
+    });
+  } catch (error) {
+    console.error('Error sending message to admin:', error);
+    res.status(500).json({ message: 'Failed to send message to admin' });
+  }
+});
+
+// Get admin conversation (Seller)
+router.get('/admin', authenticateToken, async (req, res) => {
+  try {
+    const sellerId = req.user.user?.id;
+
+    // Validate sender is seller
+    const seller = await User.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+    if (seller.role !== 'seller') {
+      return res.status(403).json({ message: 'Only sellers can access admin conversations' });
+    }
+
+    // Get messages between seller and admin
+    const messages = await Message.find({
+      $or: [
+        { senderId: sellerId, receiverType: 'admin' },
+        { senderType: 'admin', receiverId: sellerId }
+      ]
+    })
+    .populate('senderId', 'name email')
+    .sort({ createdAt: 1 });
+
+    res.json({
+      messages
+    });
+  } catch (error) {
+    console.error('Error fetching admin conversation:', error);
+    res.status(500).json({ message: 'Failed to fetch conversation' });
   }
 });
 

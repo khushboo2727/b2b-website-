@@ -28,6 +28,16 @@ const SellerRFQs = () => {
     fetchRFQs();
   }, []);
 
+  const handleViewDetails = async (rfqId, isActive) => {
+    try {
+      if (!isActive) return;
+      // fire-and-forget; if fails, just log
+      await rfqAPI.markAsOpened(rfqId);
+    } catch (err) {
+      console.warn('Failed to mark RFQ as opened:', err?.response?.data || err.message);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: Clock },
@@ -60,7 +70,7 @@ const SellerRFQs = () => {
           </div>
         </div>
         <Link
-          to="/membership"
+          to="/membership-plans"
           className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
         >
           Upgrade Now
@@ -90,7 +100,7 @@ const SellerRFQs = () => {
           <p className="text-sm font-medium text-gray-900">Premium Required</p>
           <p className="text-xs text-gray-600 mb-3">{rfq.upgradeMessage}</p>
           <Link
-            to="/membership"
+            to="/membership-plans"
             className="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700 transition-colors"
           >
             Upgrade
@@ -159,6 +169,12 @@ const SellerRFQs = () => {
                           RFQ #{rfq.rfqNumber}
                         </h3>
                         {getStatusBadge(rfq.status)}
+                        {!rfq.isActive && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Closed</span>
+                        )}
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                          Opens: {rfq.openCount || 0}/5
+                        </span>
                         {rfq.membershipRequired && (
                           <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
                             <Crown className="w-3 h-3 mr-1" />
@@ -205,16 +221,28 @@ const SellerRFQs = () => {
                           <p className="text-sm text-gray-600">{rfq.message}</p>
                         </div>
                       )}
+                      {!rfq.isActive && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded">
+                          This RFQ is closed after reaching the 5-view limit.
+                        </div>
+                      )}
                     </div>
 
                     <div className="ml-6 flex flex-col space-y-2">
-                      <button className="flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button
+                        className={`flex items-center px-3 py-2 text-sm ${rfq.isActive ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400'} rounded-lg transition-colors`}
+                        disabled={!rfq.isActive}
+                        onClick={() => handleViewDetails(rfq._id, rfq.isActive)}
+                      >
                         <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </button>
                       
                       {rfq.status === 'pending' && hasActiveMembership && (
-                        <button className="flex items-center px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                        <button
+                          className={`flex items-center px-3 py-2 text-sm ${rfq.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400'} rounded-lg transition-colors`}
+                          disabled={!rfq.isActive}
+                        >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Submit Quote
                         </button>
@@ -222,7 +250,7 @@ const SellerRFQs = () => {
                       
                       {rfq.status === 'pending' && !hasActiveMembership && (
                         <Link
-                          to="/membership"
+                          to="/membership-plans"
                           className="flex items-center px-3 py-2 text-sm text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
                         >
                           <Crown className="w-4 h-4 mr-2" />

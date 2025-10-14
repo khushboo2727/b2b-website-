@@ -7,7 +7,7 @@ const router = express.Router();
 // Get notifications for authenticated user
 router.get('/', authenticateUser, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.user.id;
     const { page = 1, limit = 20, isRead, type } = req.query;
 
     // Build filter
@@ -43,7 +43,7 @@ router.get('/', authenticateUser, async (req, res) => {
 // Get unread count
 router.get('/unread-count', authenticateUser, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.user.id;
     const unreadCount = await Notification.countDocuments({ userId, isRead: false });
     
     res.json({ unreadCount });
@@ -57,7 +57,7 @@ router.get('/unread-count', authenticateUser, async (req, res) => {
 router.patch('/:notificationId/read', authenticateUser, async (req, res) => {
   try {
     const { notificationId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.user.id;
 
     const notification = await Notification.findOne({ _id: notificationId, userId });
     if (!notification) {
@@ -77,7 +77,7 @@ router.patch('/:notificationId/read', authenticateUser, async (req, res) => {
 // Mark all notifications as read
 router.patch('/mark-all-read', authenticateUser, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.user.id;
 
     await Notification.updateMany(
       { userId, isRead: false },

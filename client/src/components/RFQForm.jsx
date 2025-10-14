@@ -51,6 +51,12 @@ const RFQForm = ({ product, onClose, onSuccess }) => {
     setLoading(true);
 
     try {
+      // Require login
+      if (!user) {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
       const rfqData = {
         productId: product._id,
         ...formData

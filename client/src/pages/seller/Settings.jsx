@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SellerLayout from '../../components/layout/SellerLayout';
 import { useAuth } from '../../context/AuthContext';
-import toast from 'react-hot-toast';
+import { useToast } from '../../context/ToastContext';
 import { Bell, Shield, Lock, Save, LogOut, Mail, Phone } from 'lucide-react';
 
 const Settings = () => {
@@ -48,6 +48,7 @@ const Settings = () => {
     e.preventDefault();
     try {
       localStorage.setItem(storageKey, JSON.stringify(prefs));
+      const toast = { success: showSuccess, error: showError, warning: showWarning, info: showInfo };
       toast.success('Preferences saved successfully');
     } catch (e) {
       toast.error('Failed to save preferences');

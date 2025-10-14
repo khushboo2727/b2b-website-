@@ -1,5 +1,6 @@
 import React from 'react';
 import SellerSidebar from './SellerSidebar';
+import AdminChatbot from '../AdminChatbot';
 
 const SellerLayout = ({ children }) => {
   return (
@@ -15,6 +16,9 @@ const SellerLayout = ({ children }) => {
           {children}
         </main>
       </div>
+      
+      {/* Admin Chatbot - Available on all seller pages */}
+      <AdminChatbot />
     </div>
   );
 };

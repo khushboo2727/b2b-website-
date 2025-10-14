@@ -5,6 +5,7 @@ import {
   User, 
   FileText, 
   MessageSquare, 
+  Headphones,
   Settings,
   LogOut,
   ShoppingCart
@@ -28,23 +29,30 @@ const BuyerSidebar = () => {
     },
     {
       name: 'Browse Products',
-      path: '/',
+      path: '/products',
       icon: ShoppingCart
     },
     {
       name: 'Profile',
       path: '/buyer/profile',
       icon: User
-    },
+    }
+    // ,
+    // {
+    //   name: 'Messages',
+    //   path: '/buyer/messages',
+    //   icon: MessageSquare
+    // },
+    // {
+    //   name: 'Settings',
+    //   path: '/buyer/settings',
+    //   icon: Settings
+    // }
+     ,
     {
-      name: 'Messages',
-      path: '/buyer/messages',
-      icon: MessageSquare
-    },
-    {
-      name: 'Settings',
-      path: '/buyer/settings',
-      icon: Settings
+      name: 'Support',
+      path: '/support',
+      icon: Headphones
     }
   ];
 
