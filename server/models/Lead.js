@@ -86,6 +86,10 @@ const leadSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  maxPurchases: {
+    type: Number,
+    default: 5
+  },
   maxViews: {
     type: Number,
     default: 5

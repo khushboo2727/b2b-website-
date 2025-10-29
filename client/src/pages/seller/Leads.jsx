@@ -1,475 +1,233 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  MessageSquare, 
-  User, 
-  Package, 
-  Calendar, 
-  Phone, 
-  Mail, 
-  Building, 
-  Filter, 
-  Search,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  Mail as MailIcon,
-  MailOpen,
-  ChevronLeft,
-  ChevronRight,
-  CreditCard
-} from 'lucide-react';
-import { leadAPI, productAPI } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import SellerLayout from '../../components/layout/SellerLayout';
 import { useToast } from '../../context/ToastContext';
+import { useNavigate } from 'react-router-dom';
+import { leadAPI, authAPI, membershipAPI } from '../../services/api';
+import { 
+  Package,
+  CreditCard,
+  User,
+  Mail,
+  Phone,
+  Building
+} from 'lucide-react';
 
-const Leads = () => {
-  const { user } = useAuth();
+function SellerLeads() {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [leads, setLeads] = useState([]);
-  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({});
-  const [membershipPlan, setMembershipPlan] = useState('');
-  
-  // Filter states
-  const [filters, setFilters] = useState({
-    status: '',
-    isRead: '',
-    dateFrom: '',
-    dateTo: '',
-    productId: '',
-    buyerName: '',
-    priority: '',
-    page: 1,
-    limit: 10
-  });
-  
-  const [showContactInfo, setShowContactInfo] = useState({});
+  const [purchasedLeadIds, setPurchasedLeadIds] = useState({});
+  const [purchasedCount, setPurchasedCount] = useState(0);
+  const [remainingLeads, setRemainingLeads] = useState(null); // number or 'Unlimited'
+  const [planName, setPlanName] = useState('');
 
   useEffect(() => {
     fetchLeads();
-    fetchProducts();
-  }, [filters]);
+    fetchMembershipAndPurchased();
+  }, []);
 
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const response = await leadAPI.getForSeller(filters);
-      setLeads(response.data.leads || []);
-      setPagination(response.data.pagination || {});
-      setMembershipPlan(response.data.membershipPlan || '');
+      const res = await leadAPI.getForSeller();
+      const data = res.data || {};
+      setLeads(data.leads || []);
     } catch (error) {
-      console.error('Error fetching leads:', error);
-      toast.error('Failed to fetch leads');
+      console.error('Error fetching seller leads:', error);
+      showError('Leads fetch failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchMembershipAndPurchased = async () => {
     try {
-      const response = await productAPI.getAll({ sellerId: user._id });
-      setProducts(response.data.products || []);
+      const me = await authAPI.getCurrentUser();
+      const user = me.data || {};
+      let plan = user.membershipPlan;
+      let leadsPerMonth = 0;
+      let name = '';
+
+      if (plan && typeof plan === 'object') {
+        leadsPerMonth = plan?.limits?.leadsPerMonth ?? 0;
+        name = plan?.name || '';
+      } else if (plan) {
+        const plansRes = await membershipAPI.getPlans();
+        const plans = plansRes.data || [];
+        const match = plans.find(p => String(p._id) === String(plan));
+        leadsPerMonth = match?.limits?.leadsPerMonth ?? 0;
+        name = match?.name || '';
+      }
+
+      setPlanName(name);
+
+      // Purchased leads for this seller
+      const purchasedRes = await leadAPI.getPurchasedLeads({ page: 1, limit: 50 });
+      const purchasedTotal = purchasedRes.data?.total ?? 0;
+      setPurchasedCount(purchasedTotal);
+
+      const purchasedList = purchasedRes.data?.leads || [];
+      const map = {};
+      purchasedList.forEach(l => { map[l._id] = true; });
+      setPurchasedLeadIds(map);
+
+      // 0 means unlimited per MembershipPlan schema
+      if (!leadsPerMonth || leadsPerMonth === 0) {
+        setRemainingLeads('Unlimited');
+      } else {
+        setRemainingLeads(Math.max(0, leadsPerMonth - purchasedTotal));
+      }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching membership/purchased info:', error);
     }
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-      page: 1 // Reset to first page when filtering
-    }));
-  };
-
-  const markAsRead = async (leadId, isRead) => {
-    try {
-      await leadAPI.markAsRead(leadId, isRead);
-      setLeads(prev => prev.map(lead => 
-        lead._id === leadId 
-          ? { ...lead, isRead, readAt: isRead ? new Date() : null }
-          : lead
-      ));
-      toast.success(`Lead marked as ${isRead ? 'read' : 'unread'}`);
-    } catch (error) {
-      console.error('Error updating read status:', error);
-      toast.error('Failed to update read status');
-    }
-  };
-
-  const updateLeadStatus = async (leadId, status) => {
-    try {
-      await leadAPI.updateStatus(leadId, status);
-      setLeads(prev => prev.map(lead => 
-        lead._id === leadId ? { ...lead, status } : lead
-      ));
-      toast.success(`Lead marked as ${status}`);
-    } catch (error) {
-      console.error('Error updating lead status:', error);
-      toast.error('Failed to update lead status');
-    }
-  };
-
-  const canViewContactInfo = (lead) => {
-    return membershipPlan === 'Premium' || membershipPlan === 'Basic';
   };
 
   const handleBuySingleLead = () => {
     navigate('/membership-plans');
   };
 
-  const toggleContactInfo = (leadId) => {
-    setShowContactInfo(prev => ({
-      ...prev,
-      [leadId]: !prev[leadId]
-    }));
+  const handlePurchaseLead = async (lead) => {
+    try {
+      // Block if purchase limit reached (fallback to 5 if undefined)
+      const max = typeof lead.maxPurchases === 'number' ? lead.maxPurchases : 5;
+      const currentPurchases = (lead.purchasedBy?.length ?? 0);
+      if (currentPurchases >= max) {
+        showError(`Is lead par ${max} sellers already purchase kar chuke hain.`);
+        return;
+      }
+
+      const allowed = remainingLeads === 'Unlimited' || (typeof remainingLeads === 'number' && remainingLeads > 0);
+      if (!planName || planName === 'Free' || !allowed) {
+        showError('Membership required or insufficient lead allowance');
+        return navigate('/membership-plans');
+      }
+
+      await leadAPI.purchase(lead._id);
+      const viewed = await leadAPI.view(lead._id);
+      const detailedLead = viewed.data;
+
+      setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, ...detailedLead } : l));
+      setPurchasedLeadIds(prev => ({ ...prev, [lead._id]: true }));
+      setPurchasedCount(prev => prev + 1);
+      if (typeof remainingLeads === 'number') {
+        setRemainingLeads(prev => Math.max(0, (prev ?? 0) - 1));
+      }
+      showSuccess('Lead purchased. Buyer details unlocked.');
+    } catch (error) {
+      console.error('Error purchasing lead:', error);
+      showError(error?.response?.data?.message || 'Failed to purchase lead');
+    }
   };
 
-  const clearFilters = () => {
-    setFilters({
-      status: '',
-      isRead: '',
-      dateFrom: '',
-      dateTo: '',
-      productId: '',
-      buyerName: '',
-      priority: '',
-      page: 1,
-      limit: 10
-    });
-  };
-
-  const LeadCard = ({ lead }) => (
-    <div className={`bg-white rounded-lg shadow-sm border p-6 ${
-      !lead.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : 'border-gray-200'
-    }`}>
-      {/* Header with read/unread status */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${
-            lead.isRead ? 'bg-gray-300' : 'bg-blue-500'
-          }`}></div>
-          <span className="text-sm font-medium text-gray-900">
-            {lead.isRead ? 'Read' : 'Unread'}
-          </span>
-          <span className="text-xs text-gray-500">
-            {new Date(lead.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => markAsRead(lead._id, !lead.isRead)}
-            className="text-blue-600 hover:text-blue-800 p-1"
-            title={lead.isRead ? 'Mark as unread' : 'Mark as read'}
-          >
-            {lead.isRead ? <MailOpen className="h-4 w-4" /> : <MailIcon className="h-4 w-4" />}
-          </button>
-          
-          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-            lead.status === 'open' 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-gray-100 text-gray-800'
-          }`}>
-            {lead.status}
-          </span>
-        </div>
-      </div>
-
-      {/* Product Info */}
-      {lead.productId && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
-          <Package className="h-5 w-5 text-gray-600" />
-          <div className="flex-1">
-            <h4 className="font-medium text-gray-900">{lead.productId.name}</h4>
-            <p className="text-sm text-gray-600">
-              Price: ₹{lead.productId.price?.toLocaleString()} | 
-              Quantity: {lead.quantity || 1}
-            </p>
+  return (
+    <SellerLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">Leads Sent To You</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500">Purchased: {purchasedCount}</div>
+            <div className="text-sm text-gray-500">Remaining: {remainingLeads ?? '-'}</div>
+            <button
+              onClick={handleBuySingleLead}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+            >
+              <CreditCard className="h-4 w-4" />
+              Buy Single Lead
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Buyer Info */}
-      <div className="mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <User className="h-4 w-4 text-gray-600" />
-          <span className="font-medium text-gray-900">
-            {canViewContactInfo(lead) ? lead.buyerId?.name : 'Premium Required'}
-          </span>
-        </div>
-        
-        {/* Contact Information */}
-        {canViewContactInfo(lead) && lead.buyerContact && (
-          <div className="space-y-2">
-            <button
-              onClick={() => toggleContactInfo(lead._id)}
-              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
-            >
-              {showContactInfo[lead._id] ? (
-                <><EyeOff className="h-4 w-4" /> Hide Contact Info</>
-              ) : (
-                <><Eye className="h-4 w-4" /> Show Contact Info</>
-              )}
-            </button>
-            
-            {showContactInfo[lead._id] && (
-              <div className="bg-blue-50 rounded-lg p-3 space-y-2">
-                {lead.buyerContact.email && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-blue-600" />
-                    <a href={`mailto:${lead.buyerContact.email}`} className="text-blue-600 hover:underline">
-                      {lead.buyerContact.email}
-                    </a>
+        {/* Leads List */}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : leads.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No leads found</h3>
+            <p className="mt-1 text-sm text-gray-500">Leads will appear here when buyers inquire about your products.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {leads.map((lead) => (
+              <div key={lead._id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <div className="mb-3">
+                      <h3 className="font-medium text-gray-900 mb-1">
+                        Product: {lead.productDetails?.title || lead.product?.title || lead.product?.name || lead.productId?.title || lead.productId?.name || 'Product not found'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Category: {lead.productDetails?.category || lead.product?.category || lead.productId?.category || 'N/A'}
+                      </p>
+                      {!purchasedLeadIds[lead._id] ? (
+                        <p className="text-xs text-gray-500 mt-1">Buyer details hidden. Purchase to unlock.</p>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <span className="font-medium text-gray-900">
+                              {lead.buyerId?.name || lead.buyer?.name || 'Buyer'}
+                            </span>
+                          </div>
+                          {lead.buyerContact?.companyName && (
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Building className="h-4 w-4 text-gray-500" />
+                              <span>{lead.buyerContact.companyName}</span>
+                            </div>
+                          )}
+                          {lead.buyerContact?.email && (
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Mail className="h-4 w-4 text-blue-600" />
+                              <span>{lead.buyerContact.email}</span>
+                            </div>
+                          )}
+                          {lead.buyerContact?.phone && (
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Phone className="h-4 w-4 text-blue-600" />
+                              <span>{lead.buyerContact.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                {lead.buyerContact.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-blue-600" />
-                    <a href={`tel:${lead.buyerContact.phone}`} className="text-blue-600 hover:underline">
-                      {lead.buyerContact.phone}
-                    </a>
-                  </div>
-                )}
-                {lead.buyerContact.companyName && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Building className="h-4 w-4 text-blue-600" />
-                    <span className="text-gray-700">{lead.buyerContact.companyName}</span>
+                  {!purchasedLeadIds[lead._id] ? (
+                    (() => {
+                      const max = typeof lead.maxPurchases === 'number' ? lead.maxPurchases : 5;
+                      const soldOut = (lead.purchasedBy?.length ?? 0) >= max;
+                      return soldOut ? (
+                        <span className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded">Sold Out</span>
+                      ) : (
+                        <button
+                          onClick={() => handlePurchaseLead(lead)}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-600 hover:text-green-800"
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          Purchase Lead
+                        </button>
+                      );
+                    })()
+                  ) : (
+                    <span className="px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded">Purchased</span>
+                  )}
+                </div>
+                {lead.message && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-1">Message</h4>
+                    <p className="text-sm text-gray-600">{lead.message}</p>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
-        
-        {!canViewContactInfo(lead) && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
-            <p className="text-sm text-yellow-800">
-              <AlertCircle className="h-4 w-4 inline mr-1" />
-              Upgrade to Premium to view buyer contact information
-            </p>
+            ))}
           </div>
         )}
       </div>
-
-      {/* Message */}
-      <div className="mb-4">
-        <h5 className="font-medium text-gray-900 mb-2">Message:</h5>
-        <p className="text-gray-700 text-sm leading-relaxed bg-gray-50 rounded-lg p-3">
-          {lead.message}
-        </p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-4 border-t">
-        {/* Show Buy Single Lead button if membership is Free and lead is not read */}
-        {membershipPlan === 'Free' && !lead.isRead ? (
-          <button
-            onClick={handleBuySingleLead}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
-          >
-            <CreditCard className="h-4 w-4" />
-            Buy Single Lead
-          </button>
-        ) : (
-          /* Show normal status buttons for paid plans or read leads */
-          lead.status === 'open' ? (
-            <button
-              onClick={() => updateLeadStatus(lead._id, 'closed')}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
-            >
-              <CheckCircle className="h-4 w-4" />
-              Mark as Closed
-            </button>
-          ) : (
-            <button
-              onClick={() => updateLeadStatus(lead._id, 'open')}
-              className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors duration-200 text-sm font-medium"
-            >
-              <Clock className="h-4 w-4" />
-              Reopen
-            </button>
-          )
-        )}
-        
-        {canViewContactInfo(lead) && lead.buyerContact?.email && (
-          <a
-            href={`mailto:${lead.buyerContact.email}?subject=Re: Inquiry for ${lead.productId?.name}`}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
-          >
-            <Mail className="h-4 w-4" />
-            Reply
-          </a>
-        )}
-      </div>
-    </div>
+    </SellerLayout>
   );
+}
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg p-6 space-y-4">
-              <div className="h-4 bg-gray-300 rounded w-1/4"></div>
-              <div className="h-3 bg-gray-300 rounded w-3/4"></div>
-              <div className="h-3 bg-gray-300 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Inquiry Dashboard</h1>
-        <p className="text-gray-600">Manage inquiries from potential buyers</p>
-        {membershipPlan && (
-          <div className="mt-2">
-            <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${
-              membershipPlan === 'Premium' 
-                ? 'bg-purple-100 text-purple-800'
-                : membershipPlan === 'Basic'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              {membershipPlan} Plan
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Advanced Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Status</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
-
-          {/* Read Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Read Status</label>
-            <select
-              value={filters.isRead}
-              onChange={(e) => handleFilterChange('isRead', e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All</option>
-              <option value="false">Unread</option>
-              <option value="true">Read</option>
-            </select>
-          </div>
-
-          {/* Product Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-            <select
-              value={filters.productId}
-              onChange={(e) => handleFilterChange('productId', e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Products</option>
-              {products.map(product => (
-                <option key={product._id} value={product._id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date Range */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <button
-            onClick={clearFilters}
-            className="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Clear Filters
-          </button>
-          
-          <div className="text-sm text-gray-600">
-            {pagination.totalLeads || 0} total inquiries
-          </div>
-        </div>
-      </div>
-
-      {/* Leads List */}
-      <div className="space-y-4 mb-6">
-        {leads.length > 0 ? (
-          leads.map((lead) => (
-            <LeadCard key={lead._id} lead={lead} />
-          ))
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No inquiries found</h3>
-            <p className="text-gray-600">Try adjusting your filters or check back later for new inquiries.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between bg-white px-6 py-3 border border-gray-200 rounded-lg">
-          <div className="text-sm text-gray-700">
-            Showing page {pagination.currentPage} of {pagination.totalPages}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleFilterChange('page', filters.page - 1)}
-              disabled={!pagination.hasPrev}
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </button>
-            
-            <span className="px-3 py-2 text-sm font-medium text-gray-700">
-              {pagination.currentPage}
-            </span>
-            
-            <button
-              onClick={() => handleFilterChange('page', filters.page + 1)}
-              disabled={!pagination.hasNext}
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Leads;
+export default SellerLeads;

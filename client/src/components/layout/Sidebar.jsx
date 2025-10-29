@@ -19,7 +19,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { icon: MessageSquare, label: 'Leads', path: '/seller/leads' },
     { icon: Users, label: 'Profile', path: '/seller/profile' },
     { icon: BarChart3, label: 'Analytics', path: '/seller/analytics' },
-    { icon: CreditCard, label: 'Membership', path: '/seller/membership' },
+    { icon: CreditCard, label: 'Membership', path: '/membership-plans' },
     { icon: Settings, label: 'Settings', path: '/seller/settings' },
   ];
 

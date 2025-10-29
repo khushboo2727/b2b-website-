@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Star, Heart, MessageCircle, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Heart, MessageCircle, Phone, Mail, FileText } from 'lucide-react';
 import { productAPI } from '../services/api';
 import InquiryForm from '../components/InquiryForm';
 import toast from 'react-hot-toast';
@@ -259,6 +259,14 @@ function ProductDetail() {
                 <MessageCircle className="h-5 w-5" />
                 Send Inquiry
               </button>
+
+              {/* <button
+                onClick={() => setShowRFQForm(true)}
+                className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-semibold flex items-center justify-center gap-2"
+              >
+                <FileText className="h-5 w-5" />
+                Request Quote (RFQ)
+              </button> */}
 
               <div className="grid grid-cols-2 gap-3">
                 <button className="flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200">

@@ -1,8 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
-import { LoadingProvider } from './context/LoadingContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Import pages
@@ -26,6 +23,8 @@ import SupportTickets from './pages/admin/SupportTickets';
 import Support from './pages/Support';
 import TrackTicket from './pages/TrackTicket';
 import Settings from './pages/seller/Settings';
+import AdminMessages from './components/admin/AdminMessages';
+import AdminLayout from './components/layout/AdminLayout';
 
 // Import seller pages
 import SellerDashboard from './pages/seller/Dashboard';
@@ -37,7 +36,8 @@ import AddProduct from './pages/seller/AddProduct';
 import SellerProducts from './pages/seller/Products';
 import EditProduct from './pages/seller/EditProduct';
 import SellerRegister from './pages/seller/Register';
-import SellerRFQs from './pages/seller/RFQs';
+// import SellerMessages from './pages/seller/Messages';
+// import SellerRFQs from './pages/seller/RFQs';
 
 // Import buyer pages
 import BuyerDashboard from './pages/buyer/Dashboard';
@@ -46,12 +46,10 @@ import BuyerProfile from './pages/buyer/Profile';
 import SellerDetail from './pages/admin/SellerDetail';
 import Categories from './pages/Categories'; // NEW
 import MembershipPlans from './pages/MembershipPlans';
+import PostRequirement from './pages/PostRequirement';
 
 function App() {
   return (
-    <LoadingProvider>
-      <ToastProvider>
-        <AuthProvider>
           <Router>
             <div className="App">
               <Routes>
@@ -68,6 +66,7 @@ function App() {
                 <Route path="/track-ticket" element={<TrackTicket />} />
                 {/* <Route path="/membership" element={<Membership />} /> */}
                 <Route path="/membership-plans" element={<MembershipPlans />} />
+                <Route path="/post-requirement" element={<PostRequirement />} />
 
                 {/* NEW: Categories landing page */}
                 <Route path="/categories" element={<Categories />} />
@@ -129,14 +128,15 @@ function App() {
                     </ProtectedRoute>
                   } 
                 />
-                <Route 
+                {/* Messages page removed; floating widget now handles chat */}
+                {/* <Route 
                   path="/seller/rfqs" 
                   element={
                     <ProtectedRoute allowedRoles={['seller']}>
                       <SellerRFQs />
                     </ProtectedRoute>
                   } 
-                />
+                /> */}
                 <Route 
                   path="/seller/all-leads" 
                   element={
@@ -190,11 +190,21 @@ function App() {
                 
                 {/* Admin Routes */}
                 <Route path="/admin/login" element={<AdminLogin />} />
-                <Route
+                <Route 
                   path="/admin/dashboard"
                   element={
                     <AdminDashboard />
                   }
+                />
+                <Route 
+                  path="/admin/messages" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminLayout>
+                        <AdminMessages />
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  } 
                 />
                 <Route 
                   path="/admin/buyers" 
@@ -251,9 +261,6 @@ function App() {
               </Routes>
             </div>
           </Router>
-        </AuthProvider>
-      </ToastProvider>
-    </LoadingProvider>
   );
 }
 

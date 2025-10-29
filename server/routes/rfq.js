@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateUser, authorizeRoles } from '../middleware/auth.js';
-import { RFQ, Product, User, SellerProfile, MessageLog } from '../models/index.js';
+import { RFQ, Product, User, SellerProfile, MessageLog, Message } from '../models/index.js';
 import { sendRFQNotification } from '../services/emailService.js';
 import mongoose from 'mongoose';
 
@@ -512,6 +512,26 @@ router.post('/:id/communication',
       });
       
       await rfq.save();
+
+      // Forward any seller-sent communication to admin for visibility
+      try {
+        const isSellerMessage = rfq.sellerId.toString() === req.user.user.id;
+        if (isSellerMessage) {
+          const adminMessage = new Message({
+            senderId: req.user.user.id,
+            receiverId: null,
+            content: message,
+            messageType: 'general',
+            senderType: 'seller',
+            receiverType: 'admin',
+            productId: rfq.productId
+          });
+          await adminMessage.save();
+        }
+      } catch (forwardErr) {
+        console.error('Failed to forward seller RFQ communication to admin:', forwardErr.message);
+        // Do not block the main flow on forward errors
+      }
       
       const updatedRFQ = await RFQ.findById(rfq._id)
         .populate('productId')

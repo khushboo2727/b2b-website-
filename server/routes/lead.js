@@ -96,10 +96,46 @@ router.post('/',
         console.error('Notification error (quote distribution):', notifyErr);
       }
       
-      res.status(201).json(lead);
-    } catch (err) {
+  res.status(201).json(lead);
+  } catch (err) {
       console.error(err.message);
       res.status(500).send('Server Error');
+    }
+  }
+);
+
+// @route   GET /api/leads/buyer
+// @desc    Get all leads submitted by the current buyer
+// @access  Private (Buyer only)
+router.get('/buyer',
+  authenticateUser,
+  authorizeRoles(['buyer']),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 10, status } = req.query;
+
+      const query = { buyerId: req.user.user.id };
+      if (status && status !== 'all') {
+        query.status = status;
+      }
+
+      const leads = await Lead.find(query)
+        .populate('productId', ['title', 'category'])
+        .sort({ createdAt: -1 })
+        .limit(Number(limit))
+        .skip((Number(page) - 1) * Number(limit));
+
+      const total = await Lead.countDocuments(query);
+
+      return res.json({
+        leads,
+        totalPages: Math.ceil(total / Number(limit)),
+        currentPage: Number(page),
+        total
+      });
+    } catch (err) {
+      console.error(err.message);
+      return res.status(500).send('Server Error');
     }
   }
 );
@@ -210,6 +246,7 @@ router.get('/all',
         status, 
         dateFrom, 
         dateTo,
+        includeExpired,
         page = 1, 
         limit = 10 
       } = req.query;
@@ -217,9 +254,11 @@ router.get('/all',
       // Build filter query for all leads
       let filterQuery = {};
       
-      // Remove leads older than 48 hours
-      const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-      filterQuery.createdAt = { $gte: fortyEightHoursAgo };
+      // Default: show last 48 hours only, unless includeExpired=true or date range is provided
+      if (!(includeExpired === 'true')) {
+        const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+        filterQuery.createdAt = { $gte: fortyEightHoursAgo };
+      }
       
       // Apply filters
       if (status) filterQuery.status = status;
@@ -397,6 +436,12 @@ router.post('/:id/purchase',
       // Check if lead is still active
       if (!lead.isActive || lead.status === 'inactive') {
         return res.status(400).json({ message: 'Lead is no longer active' });
+      }
+
+      // Enforce purchase limit (default 5 sellers)
+      const maxPurchases = typeof lead.maxPurchases === 'number' ? lead.maxPurchases : 5;
+      if ((lead.purchasedBy?.length || 0) >= maxPurchases) {
+        return res.status(400).json({ message: 'Lead purchase limit reached (5 sellers)' });
       }
 
       // Check if seller already purchased this lead

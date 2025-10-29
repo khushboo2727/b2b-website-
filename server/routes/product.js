@@ -120,6 +120,19 @@ router.get('/', async (req, res) => {
         preserveNullAndEmptyArrays: true 
       } 
     });
+
+    // Lookup membership plan for seller
+    pipeline.push({
+      $lookup: {
+        from: 'membershipplans',
+        localField: 'seller.membershipPlan',
+        foreignField: '_id',
+        as: 'membershipPlan'
+      }
+    });
+    pipeline.push({
+      $unwind: { path: '$membershipPlan', preserveNullAndEmptyArrays: true }
+    });
     
     // Additional filters based on seller info
     let additionalMatch = {};
@@ -155,14 +168,22 @@ router.get('/', async (req, res) => {
           ]
         },
         companyName: '$sellerProfile.companyName',
-        companyLogo: '$sellerProfile.companyLogo'
+        companyLogo: '$sellerProfile.companyLogo',
+        membershipPrice: { $ifNull: ['$membershipPlan.price', 0] },
+        membershipName: '$membershipPlan.name'
       }
     });
     
     // Sort
     let sortStage = {};
-    if (search && !sortBy) {
-      sortStage = { score: { $meta: 'textScore' }, createdAt: -1 };
+    if (search) {
+      // Priority: expensive membership, good rating, text relevance, recency
+      sortStage = {
+        membershipPrice: -1,
+        averageRating: -1,
+        score: { $meta: 'textScore' },
+        createdAt: -1
+      };
     } else {
       sortStage[sortBy] = sortOrder === 'desc' ? -1 : 1;
     }

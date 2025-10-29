@@ -58,6 +58,19 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'MembershipPlan'
   },
+
+
+ planStatus: { // NEW: track if plan is active/pending/expired
+    type: String,
+    enum: ['active', 'pending', 'expired'],
+    default: 'pending'
+  },
+  planActivatedAt: { // NEW: store activation date
+    type: Date
+  },
+
+
+
   verified: {
     type: Boolean,
     default: false

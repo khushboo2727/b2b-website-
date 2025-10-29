@@ -4,13 +4,17 @@ const membershipPlanSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    enum: ['Free', 'Premium'],
+    enum: ['Free', 'Basic', 'Standard', 'Gold', 'Premium'], 
     unique: true
   },
   price: {
     type: Number,
     required: true,
     default: 0
+  },
+  period: {
+    type: String,
+    default: '/year',
   },
   features: [{
     type: String,
@@ -39,3 +43,5 @@ const membershipPlanSchema = new mongoose.Schema({
 });
 
 export default mongoose.model('MembershipPlan', membershipPlanSchema);
+
+

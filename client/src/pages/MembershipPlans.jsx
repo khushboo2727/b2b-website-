@@ -1,10 +1,76 @@
 import React, { useState } from 'react';
 import { Check, X, Crown, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { membershipAPI, authAPI, leadAPI } from '../services/api';
 
 const MembershipPlans = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [remainingLeads] = useState(0);
+  const [remainingLeads, setRemainingLeads] = useState('—');
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isLoggedIn = !!user;
+  const { updateUser } = useAuth();
+  const [serverPlans, setServerPlans] = useState([]);
+
+  React.useEffect(() => {
+    const fetchServerPlans = async () => {
+      try {
+        const res = await membershipAPI.getPlans();
+        setServerPlans(res.data || []);
+      } catch (err) {
+        console.error('Failed to load server plans', err);
+      }
+    };
+    fetchServerPlans();
+  }, []);
+
+  // Compute remaining leads based on current membership plan and purchased count
+  React.useEffect(() => {
+    const computeRemainingLeads = async () => {
+      try {
+        if (!isLoggedIn) {
+          setRemainingLeads(0);
+          return;
+        }
+
+        const meRes = await authAPI.getCurrentUser();
+        const meData = meRes?.data || {};
+        let planRef = meData.membershipPlan;
+        let leadsPerMonth = 0;
+
+        if (planRef && typeof planRef === 'object') {
+          leadsPerMonth = planRef?.limits?.leadsPerMonth ?? 0;
+        } else if (planRef) {
+          // Prefer already-fetched serverPlans; fallback to fetching if empty
+          let plans = serverPlans;
+          if (!plans || plans.length === 0) {
+            const pRes = await membershipAPI.getPlans();
+            plans = pRes.data || [];
+          }
+          const match = plans.find(p => String(p._id) === String(planRef));
+          leadsPerMonth = match?.limits?.leadsPerMonth ?? 0;
+        }
+
+        // Purchased leads total for this seller
+        const purchasedRes = await leadAPI.getPurchasedLeads({ page: 1, limit: 50 });
+        const purchasedTotal = purchasedRes?.data?.total ?? 0;
+
+        // 0 means unlimited in MembershipPlan schema
+        if (!leadsPerMonth || leadsPerMonth === 0) {
+          setRemainingLeads('Unlimited');
+        } else {
+          setRemainingLeads(Math.max(0, leadsPerMonth - purchasedTotal));
+        }
+      } catch (err) {
+        console.error('Failed to compute remaining leads:', err);
+        setRemainingLeads(0);
+      }
+    };
+
+    computeRemainingLeads();
+  }, [isLoggedIn, serverPlans]);
 
   const plans = [
     {
@@ -79,18 +145,81 @@ const MembershipPlans = () => {
   ];
 
   const handlePlanSelection = (plan) => {
-    setSelectedPlan(plan);
-    // यहाँ API call होगी plan assign करने के लिए
-    toast.success(`${plan.name} plan selected successfully!`);
-    console.log('Selected plan:', plan);
+    if (!isLoggedIn) {
+      toast.error('Please login to select a plan');
+      navigate('/login');
+      return;
+    }
+    const matchServerPlanId = () => {
+      if (!serverPlans.length) return null;
+      const name = (plan.name || '').toLowerCase();
+      // Exact match first
+      const exact = serverPlans.find(p => (p.name || '').toLowerCase() === name);
+      if (exact) return exact._id;
+      // Heuristic mapping
+      if (name.includes('free')) {
+        const freePlan = serverPlans.find(p => (p.name || '').toLowerCase().includes('free'));
+        if (freePlan) return freePlan._id;
+      }
+      if (name.includes('basic')) {
+        const basicPlan = serverPlans.find(p => (p.name || '').toLowerCase().includes('basic'));
+        if (basicPlan) return basicPlan._id;
+      }
+      // Map Standard/Gold to Premium (highest tier)
+      if (name.includes('standard') || name.includes('gold') || name.includes('premium')) {
+        const premiumPlan = serverPlans.find(p => (p.name || '').toLowerCase().includes('premium'));
+        if (premiumPlan) return premiumPlan._id;
+      }
+      return null;
+    };
+
+    const serverPlanId = matchServerPlanId();
+    const normalizedName = (() => {
+      const n = (plan.name || '').toLowerCase();
+      if (n.includes('standard') || n.includes('gold') || n.includes('premium')) return 'Premium';
+      if (n.includes('basic')) return 'Basic';
+      return 'Free';
+    })();
+
+    const activate = async () => {
+      try {
+        const res = await membershipAPI.subscribe(serverPlanId || normalizedName, { name: normalizedName });
+        const updatedUser = res?.data?.user;
+        if (updatedUser) {
+          updateUser(updatedUser);
+        }
+        setSelectedPlan(plan);
+        toast.success(`${plan.name} plan activated (testing mode)!`);
+        navigate('/seller/leads');
+      } catch (err) {
+        const msg = err?.response?.data?.message || err?.response?.data?.msg || err.message || 'Activation failed';
+        // Fallback: local-only activation for UI testing
+        updateUser({ ...(user || {}), membershipPlan: { name: normalizedName } });
+        setSelectedPlan(plan);
+        toast.success(`${plan.name} plan locally activated for testing`);
+        navigate('/seller/leads');
+      }
+    };
+
+    activate();
   };
 
   const handleBuyLead = () => {
+    if (!isLoggedIn) {
+      toast.error('Please login to buy a single lead');
+      navigate('/login');
+      return;
+    }
     toast.info('Redirecting to buy single lead...');
     console.log('Buy single lead clicked');
   };
 
   const handleBuyVerifyTag = () => {
+    if (!isLoggedIn) {
+      toast.error('Please login to buy verify tag');
+      navigate('/login');
+      return;
+    }
     toast.info('Redirecting to buy verify tag...');
     console.log('Buy verify tag clicked');
   };
@@ -115,6 +244,14 @@ const MembershipPlans = () => {
             Grow your business with the right features
           </p>
         </div>
+
+        {/* Login Notice */}
+        {!isLoggedIn && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-sm">Login required: Activate plan or buy single lead only after login.</p>
+            <Link to="/login" className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm">Login</Link>
+          </div>
+        )}
 
         {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -159,11 +296,12 @@ const MembershipPlans = () => {
               {/* Action Button */}
               <button
                 onClick={() => handlePlanSelection(plan)}
+                disabled={!isLoggedIn}
                 className={`w-full py-3 px-4 rounded-lg text-white font-semibold transition-colors duration-200 ${
                   plan.buttonColor
-                } ${selectedPlan?.id === plan.id ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                } ${selectedPlan?.id === plan.id ? 'ring-2 ring-offset-2 ring-blue-500' : ''} ${!isLoggedIn ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                {selectedPlan?.id === plan.id ? 'Selected' : plan.buttonText}
+                {selectedPlan?.id === plan.id ? 'Selected' : (!isLoggedIn ? 'Login to Select' : plan.buttonText)}
               </button>
             </div>
           ))}
@@ -181,15 +319,17 @@ const MembershipPlans = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={handleBuyLead}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200"
+              disabled={!isLoggedIn}
+              className={`bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 ${!isLoggedIn ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              Buy a Single Lead
+              {isLoggedIn ? 'Buy a Single Lead' : 'Login to Buy Lead'}
             </button>
             <button 
               onClick={handleBuyVerifyTag}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200"
+              disabled={!isLoggedIn}
+              className={`bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 ${!isLoggedIn ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              Buy Verify Tag
+              {isLoggedIn ? 'Buy Verify Tag' : 'Login to Buy Tag'}
             </button>
           </div>
         </div>

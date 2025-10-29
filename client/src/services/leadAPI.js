@@ -40,7 +40,7 @@ export const leadAPI = {
   // Create new lead (for buyers)
   createLead: async (leadData) => {
     try {
-      const response = await api.post('/api/lead', leadData);
+      const response = await api.post('/api/leads', leadData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -50,7 +50,7 @@ export const leadAPI = {
   // Get leads for seller (distributed leads)
   getSellerLeads: async (page = 1, limit = 10, category = '') => {
     try {
-      const response = await api.get(`/api/leads/all?page=${page}&limit=${limit}&category=${category}`);
+      const response = await api.get(`/api/leads/all?page=${page}&limit=${limit}&category=${category}&includeExpired=true`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -60,7 +60,7 @@ export const leadAPI = {
   // Purchase lead access
   purchaseLead: async (leadId, amount = 100) => {
     try {
-      const response = await api.post(`/api/lead/${leadId}/purchase`, { amount });
+      const response = await api.post(`/api/leads/${leadId}/purchase`, { amount });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -70,7 +70,7 @@ export const leadAPI = {
   // View lead (marks as viewed and checks 5-view limit)
   viewLead: async (leadId) => {
     try {
-      const response = await api.post(`/api/lead/${leadId}/view`);
+      const response = await api.post(`/api/leads/${leadId}/view`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -90,7 +90,7 @@ export const leadAPI = {
   // Update lead status
   updateLeadStatus: async (leadId, status) => {
     try {
-      const response = await api.patch(`/api/lead/${leadId}/status`, { status });
+      const response = await api.patch(`/api/leads/${leadId}/status`, { status });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -100,7 +100,7 @@ export const leadAPI = {
   // Mark lead as read
   markAsRead: async (leadId) => {
     try {
-      const response = await api.patch(`/api/lead/${leadId}/read`);
+      const response = await api.patch(`/api/leads/${leadId}/read`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

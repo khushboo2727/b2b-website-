@@ -21,6 +21,8 @@ const Home = () => {
   // Dummy auth (replace with real auth context)
   const [user, setUser] = useState({ name: "Khushboo Gupta", email: "demo@test.com" });
   const navigate = useNavigate();
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, info: showInfo, warning: showWarning };
 
   // Fetch products
   const fetchProducts = async () => {
@@ -69,6 +71,46 @@ const Home = () => {
     setUser(null);
     toast.success('Logged out successfully');
     navigate('/');
+  };
+
+  // Center hero search submit handler — navigates to Products page
+  const handleHeroSearch = (e) => {
+    e.preventDefault();
+    const term = (searchTerm || '').trim();
+    navigate(term ? `/products?search=${encodeURIComponent(term)}` : '/products');
+  };
+
+  // Suggestions state and debounced fetch
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    const q = (searchTerm || '').trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setLoadingSuggestions(true);
+    const t = setTimeout(async () => {
+      try {
+        const resp = await productAPI.getSearchSuggestions(q);
+        const items = resp?.data || [];
+        setSuggestions(items);
+        setShowSuggestions(items.length > 0);
+      } catch (err) {
+        // ignore
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const handleSuggestionClick = (text) => {
+    setShowSuggestions(false);
+    navigate(`/products?search=${encodeURIComponent(text)}`);
   };
 
   const ProductCard = ({ product }) => (
@@ -172,10 +214,44 @@ const Home = () => {
     }
   ];
 
+  // Categories cards data (same as Categories.jsx)
+  const categoriesSections = [
+    {
+      title: 'Industrial Supplies',
+      image: '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg',
+      columns: [
+        { heading: 'Manufacturing & Processing Machinery', items: ['CNC Machines', 'Plastic Machinery', 'Food Processing', 'Textile Machinery', 'Woodworking'] },
+        { heading: 'Industrial Equipment & Components', items: ['Bearings', 'Pumps', 'Valves', 'Compressors', 'Hydraulics & Pneumatics'] },
+        { heading: 'Materials', items: ['Metals & Alloys', 'Plastics & Rubber', 'Composites', 'Industrial Ceramics', 'Abrasives'] },
+        { heading: 'Packaging & Printing', items: ['Packaging Machines', 'Bottling', 'Labels & Tags', 'Printing Machinery', 'Cartons & Boxes'] },
+      ],
+    },
+    {
+      title: 'Home & Security',
+      image: '/images/categories/Untitled design (6).png',
+      columns: [
+        { heading: 'Construction & Decoration', items: ['Doors & Windows', 'Flooring', 'Sanitary Ware', 'Tiles', 'Kitchen'] },
+        { heading: 'Lights & Lighting', items: ['LED Lights', 'Outdoor Lighting', 'Commercial Lighting', 'Smart Lighting', 'Components'] },
+        { heading: 'Furniture', items: ['Home Furniture', 'Office Furniture', 'Outdoor Furniture', 'Hotel Furniture', 'Kids Furniture'] },
+        { heading: 'Security & Protection', items: ['CCTV', 'Access Control', 'Alarm', 'Safes', 'Locks & Keys'] },
+      ],
+    },
+    {
+      title: 'Transportation & Sporting Goods',
+      image: '/images/categories/bicycle.png',
+      columns: [
+        { heading: 'Auto, Motorcycle Parts & Accessories', items: ['Auto Parts', 'Motorcycle Parts', 'Tires & Wheels', 'Batteries', 'Lubricants'] },
+        { heading: 'Transport', items: ['E-Bikes', 'Electric Vehicles', 'Bicycles', 'ATVs', 'Scooters'] },
+        { heading: 'Service', items: ['Maintenance', 'Repair', 'Logistics', 'Testing', 'Customization'] },
+        { heading: 'Sporting Goods & Recreation', items: ['Fitness', 'Outdoor Sports', 'Camping', 'Water Sports', 'Games & Toys'] },
+      ],
+    },
+  ];
+
   const promoSlides = [
-    { title: 'Embrace Eco-Friendly Living', subtitle: 'Sustainable products for modern homes', image: 'https://placehold.co/720x320' },
-    { title: 'Trusted Global Suppliers', subtitle: 'Verified manufacturers & exporters', image: 'https://placehold.co/720x320' },
-    { title: 'Quality You Can Count On', subtitle: 'Best prices, reliable delivery', image: 'https://placehold.co/720x320' },
+    { title: 'Embrace Eco-Friendly Living', subtitle: 'Sustainable products for modern homes.', image: '/images/banners/EcoFriendly.png' },
+    { title: 'Your Gateway to Global Trade', subtitle: 'Discover authentic suppliers, verified exporters & genuine buyers.', image: '/images/banners/banner2.png' },
+    { title: 'Together for a World Without Hunger', subtitle: 'Let’s build a future where every plate is full and every life is nourished.', image: '/images/banners/banner3.png' },
   ];
   const [slide, setSlide] = useState(0);
   useEffect(() => {
@@ -240,8 +316,11 @@ const Home = () => {
 
   const HeroCarousel = () => (
     <div className="relative bg-white border rounded-lg overflow-hidden">
-      <img src={promoSlides[slide].image} alt={promoSlides[slide].title} className="w-full h-[260px] object-cover" />
+      <img src={promoSlides[slide].image} alt={promoSlides[slide].title} className="w-full h-[360px] object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      
+      {/* Removed centered search overlay */}
+      
       <div className="absolute bottom-4 left-4 text-white">
         <h2 className="text-2xl font-bold">{promoSlides[slide].title}</h2>
         <p className="text-sm text-gray-100">{promoSlides[slide].subtitle}</p>
@@ -292,11 +371,11 @@ const Home = () => {
       { name: 'Textiles', category: 'Textiles & Garments', image: '/images/categories/Untitled design (8).png' },
       { name: 'Furniture', category: 'Furniture & Decor', image: '/images/categories/Untitled design (6).png' },
       { name: 'Automobile', category: 'Automobile & Spares', image: '/images/categories/bicycle.png' },
-      { name: 'Construction', category: 'Construction & Hardware', image: '/images/categories/Untitled design (7).png' },
-      { name: 'Food & Bev', category: 'Food & Beverages', image: '/images/categories/love bottle.jpg' },
-      { name: 'Beauty', category: 'Health & Beauty', image: '/images/categories/love bottle 3.jpg' },
+      { name: 'Construction', category: 'Construction & Hardware', image: '/images/categories/construction.png' },
+      { name: 'Food & Bev', category: 'Food & Beverages', image: '/images/categories/food.png' },
+      { name: 'Beauty', category: 'Health & Beauty', image: '/images/categories/beauty.png' },
       { name: 'Handicrafts', category: 'Handicrafts & Gifts', image: '/images/categories/Untitled design (3).png' },
-      { name: 'Stationery', category: 'Stationery & Office', image: '/images/categories/love bottle 4.jpg' },
+      { name: 'Stationery', category: 'Stationery & Office', image: '/images/categories/stationary.png' },
       { name: 'IT Services', category: 'IT Services', image: '/images/categories/phone.png' },
       // Empty slots to push More to next row
       { name: '', category: null, isEmpty: true },
@@ -316,7 +395,7 @@ const Home = () => {
     };
     
     return (
-      <section className="max-w-7xl mx-auto px-4 mt-6">
+      <section className="max-w-9xl mx-auto px-4 mt-6">
         <div className="bg-white border rounded-lg p-4">
           <h3 className="text-lg font-semibold mb-3">Explore Categories</h3>
           <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-4">
@@ -331,7 +410,7 @@ const Home = () => {
                   className="group w-full"
                 >
                   <div className="border rounded-lg p-3 bg-white hover:shadow-sm transition text-center cursor-pointer">
-                    <img src={tile.image || '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg'} alt={tile.name} className="w-12 h-12 mx-auto mb-2 object-cover rounded" />
+                    <img src={tile.image || '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg'} alt={tile.name} className="w-24 h-16 mx-auto mb-2 object-cover rounded" />
                     <div className="text-xs font-medium text-gray-700 group-hover:text-blue-600 truncate">{tile.name}</div>
                   </div>
                 </button>
@@ -344,7 +423,7 @@ const Home = () => {
   };
 
   const EasySourcing = () => (
-    <section className="max-w-7xl mx-auto px-4 mt-6">
+    <section className="max-w-9xl mx-auto px-4 mt-6">
       <div className="bg-white border rounded-lg grid grid-cols-1 md:grid-cols-2 overflow-hidden">
         <div className="p-6">
           <h3 className="text-xl font-semibold mb-2">Easy Sourcing</h3>
@@ -373,7 +452,7 @@ const Home = () => {
   );
 
   const SecuredTrading = () => (
-    <section className="max-w-7xl mx-auto px-4 mt-6">
+    <section className="max-w-9xl mx-auto px-4 mt-6">
       <div className="rounded-lg bg-gradient-to-r from-red-600 to-red-500 text-white p-5 flex items-center justify-between">
         <div>
           <div className="text-lg font-semibold">Secured Trading Service</div>
@@ -385,7 +464,7 @@ const Home = () => {
   );
 
   const SourcingSolutions = () => (
-    <section className="max-w-7xl mx-auto px-4 mt-6">
+    <section className="max-w-9xl mx-auto px-4 mt-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { icon: Shield, title: 'Verified Suppliers', desc: 'Work with vetted manufacturers' },
@@ -437,40 +516,88 @@ const Home = () => {
     <div className="min-h-screen bg-[#fefcfa]">
       {/* ✅ Navbar */}
       <header className="bg-[#2f3284] shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link to="/" className="text-xl font-bold text-white">Indoorsy</Link>
-          <nav className="flex items-center gap-6">
-            {user && (
-              <Link to="/membership-plans" className="text-[#ff6600] hover:text-white font-medium">Membership</Link>
-            )}
-            {user ? (
-              <div className="relative group">
-                <div className="w-10 h-10 rounded-full bg-[#ff6600] text-white flex items-center justify-center cursor-pointer">
-                  {user.name?.charAt(0).toUpperCase()}
+        <div className="max-w-7xl mx-auto px-2 py-3 grid grid-cols-12 gap-4 items-center">
+          <Link to="/" className="col-span-2 text-2xl font-bold text-white">NBS World</Link>
+          {/* Header Center Search */}
+          <form onSubmit={handleHeroSearch} className="col-span-6 hidden md:flex w-full">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onFocus={() => setShowSuggestions(suggestions.length > 0)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-l-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              />
+              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && (
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                  <div className="max-h-64 overflow-auto">
+                    {loadingSuggestions && (
+                      <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                    )}
+                    {!loadingSuggestions && suggestions.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-gray-500">No suggestions</div>
+                    )}
+                    {!loadingSuggestions && suggestions.map((s, idx) => (
+                      <button
+                        key={`${s}-${idx}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSuggestionClick(s)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <Search className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-700 line-clamp-1">{s}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="absolute right-0 mt-0 w-40 bg-white shadow-lg rounded-lg border opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition">
-                  <Link 
-                    to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'} 
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Dashboard
-                  </Link>
-                  <button onClick={() => { setUser(null); toast.success('Logged out successfully'); navigate('/'); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <Link to="/login" className="text-white hover:text-[#ff6600] font-medium">Sign In</Link>
-                <Link to="/register" className="bg-[#ff6600] hover:bg-[#ff8533] text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign Up</Link>
-              </div>
-            )}
-          </nav>
-        </div>
-      </header>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-[#ff6600] text-white rounded-r-md hover:bg-blue-700 transition-colors"
+            >
+              Search
+            </button>
+          </form>
+          <nav className="col-span-4 flex items-center justify-end gap-6">
+             <Link to="/post-requirement" className="text-white hover:text-[#ff6600] font-medium">Post Requirement</Link>
+             {user && (
+               <Link to="/membership-plans" className="text-[#ff6600] hover:text-white font-medium">Membership</Link>
+             )}
+             {user ? (
+               <div className="relative group">
+                 <div className="w-10 h-10 rounded-full bg-[#ff6600] text-white flex items-center justify-center cursor-pointer">
+                   {user.name?.charAt(0).toUpperCase()}
+                 </div>
+                 <div className="absolute right-0 mt-0 w-40 bg-white shadow-lg rounded-lg border opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition">
+                   <Link 
+                     to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'} 
+                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                   >
+                     Dashboard
+                   </Link>
+                   <button onClick={() => { setUser(null); toast.success('Logged out successfully'); navigate('/'); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
+                 </div>
+               </div>
+             ) : (
+               <div className="flex items-center gap-4">
+                 <Link to="/login" className="text-white hover:text-[#ff6600] font-medium">Sign In</Link>
+                 <Link to="/register" className="bg-[#ff6600] hover:bg-[#ff8533] text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign Up</Link>
+               </div>
+             )}
+           </nav>
+         </div>
+       </header>
 
       {/* Top Section: Categories | Hero | Right mini cards */}
       <section className="py-6">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="max-w-9xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
           <aside className="hidden lg:block lg:col-span-3">
             <CategorySidebar />
           </aside>
@@ -488,13 +615,68 @@ const Home = () => {
       {/* Explore Categories grid */}
       <CategoryTiles />
 
+      {/* Categories Cards snapshot (same design as /categories) */}
+      <section className="max-w-9xl mx-auto px-4 mt-6">
+        {categoriesSections.map((sec) => (
+          <section key={sec.title} className="bg-white border rounded-lg overflow-hidden mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-5">
+              <div className="md:col-span-2 p-4">
+                <img src={sec.image} alt={sec.title} className="w-full h-80 object-cover rounded" />
+                <h2 className="mt-2 font-semibold">{sec.title}</h2>
+              </div>
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-4">
+                {sec.columns.map((col) => (
+                  <div key={col.heading} className="p-4 border-t md:border-l">
+                    <h3 className="font-semibold">{col.heading}</h3>
+                    <ul className="mt-2 text-sm text-gray-700 space-y-1">
+                      {col.items.map((it) => (
+                        <li key={it}>
+                          <button
+                            onClick={() => navigate(`/products?category=${encodeURIComponent(it)}`)}
+                            className="hover:text-blue-600 text-left"
+                          >
+                            {it}
+                          </button>
+                        </li>
+                      ))}
+                      <button
+                        onClick={() => navigate(`/products?category=${encodeURIComponent(col.heading)}`)}
+                        className="text-blue-600 text-sm"
+                      >
+                        More &gt;
+                      </button>
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ))}
+        <div className="text-right">
+          <Link to="/categories" className="text-sm text-blue-600 hover:underline">View all categories</Link>
+        </div>
+      </section>
+
       {/* Selected Trending Products */}
-      <section id="products-section" className="max-w-7xl mx-auto px-4 mt-6">
+      <section id="products-section" className="max-w-9xl mx-auto px-2 mt-6">
         <div className="bg-white border rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">Selected Trending Products</h3>
             <Link to="/products" className="text-sm text-blue-600 hover:underline">View more</Link>
           </div>
+          {/* Subcategory chips under trending section */}
+           <div className="mb-4 flex flex-wrap gap-2">
+             {Array.from(new Set(sidebarCategories.flatMap(c => c.subcategories))).slice(0, 12).map((sub) => (
+               <button
+                 key={sub}
+                 onClick={() => navigate(`/products?category=${encodeURIComponent(sub)}`)}
+                 className="px-3 py-1 text-xs rounded-full border border-gray-300 hover:border-blue-600 hover:text-blue-700 bg-white"
+                 title={`View products in ${sub}`}
+               >
+                 {sub}
+               </button>
+             ))}
+           </div>
           {loading ? (
             <div className="py-12 text-center text-gray-500">Loading products...</div>
           ) : products.length ? (
@@ -511,7 +693,7 @@ const Home = () => {
                     <div className="font-medium text-sm line-clamp-2">{p.title || p.name}</div>
                     <div className="text-xs text-gray-500 mt-1">{p.category || 'Category'}</div>
                     <div className="mt-3 flex gap-2">
-                      <Link to={`/product/${p._id}`} className="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded text-xs text-center">View</Link>
+                      <Link to={`/product/${p._id}`} className="flex-1 bg-[#ff6600] text-white py-1.5 px-3 rounded text-xs text-center">View</Link>
                       <button className="bg-green-600 text-white py-1.5 px-3 rounded text-xs">Inquire</button>
                     </div>
                   </div>
@@ -537,8 +719,8 @@ const Home = () => {
       {/* <TradeShows /> */}
 
       {/* Footer */}
-      <footer className="bg-[#ff6600] text-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <footer className="bg-[#ff4d00] text-black">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Company Info */}
             <div className="space-y-4">
@@ -573,8 +755,8 @@ const Home = () => {
                 <li><a href="/categories" className="text-gray-900 hover:text-blue-700 transition-colors">Categories</a></li>
                 <li><a href="/products" className="text-gray-900 hover:text-blue-700 transition-colors">Products</a></li>
                 <li><a href="/suppliers" className="text-gray-900 hover:text-blue-700 transition-colors">Suppliers</a></li>
-                <li><a href="/rfq" className="text-gray-900 hover:text-blue-700 transition-colors">Post RFQ</a></li>
-                <li><a href="/membership" className="text-gray-900 hover:text-blue-700 transition-colors">Membership Plans</a></li>
+                <li><a href="/post-requirement" className="text-gray-900 hover:text-blue-700 transition-colors">Post Requirement</a></li>
+                <li><a href="/membership-plans" className="text-gray-900 hover:text-blue-700 transition-colors">Membership Plans</a></li>
               </ul>
             </div>
 
@@ -596,13 +778,14 @@ const Home = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex items-start space-x-2">
                   <MapPin className="w-4 h-4 text-gray-900 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-900">123 Business District, Mumbai, Maharashtra 400001, India</span>
+                  <span className="text-gray-900">Unit 202, 2nd Floor,EF3 Mall, Sector 20 A,
+Faridabad, Haryana 121001</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 24 24"> 
                     <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                   </svg>
-                  <span className="text-gray-900">+91 98765 43210</span>
+                  <span className="text-gray-900">+91 9999048686</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <svg className="w-4 h-4 text-gray-900" fill="currentColor" viewBox="0 0 24 24">

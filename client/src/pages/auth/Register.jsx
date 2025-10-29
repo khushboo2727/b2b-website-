@@ -3,14 +3,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Mail, Lock, User, Building2, Phone, MapPin } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { authAPI as authApiWithToast } from '../../services/apiWithToast';
+import { useToast } from '../../context/ToastContext';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState('buyer');
+  const [otpId, setOtpId] = useState(null);
+  const [otp, setOtp] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const navigate = useNavigate();
   const { register: registerUser } = useAuth();
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  const toast = { success: showSuccess, error: showError, info: showInfo, warning: showWarning };
   
   const {
     register,
@@ -27,6 +36,11 @@ const Register = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
+      // Buyer registration requires OTP verification
+      if (userRole === 'buyer' && !otpVerified) {
+        toast.error('Please verify OTP sent to your email before registering');
+        return;
+      }
       const userData = {
         name: data.name,
         email: data.email,
@@ -56,6 +70,56 @@ const Register = () => {
       console.error('Registration error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const requestOtp = async () => {
+    try {
+      const name = watch('name');
+      const email = watch('email');
+      if (!email) {
+        toast.error('Please enter your email to receive OTP');
+        return;
+      }
+      setIsSendingOtp(true);
+      const res = await authApiWithToast.requestOtp({ name, email });
+      const id = res?.data?.otpId;
+      if (id) {
+        setOtpId(id);
+        toast.success(`OTP sent to ${email}`);
+      } else {
+        toast.error(res?.data?.message || 'Failed to request OTP');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to request OTP');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    try {
+      if (!otpId) {
+        toast.error('Please generate OTP first');
+        return;
+      }
+      if (!otp) {
+        toast.error('Please enter the OTP');
+        return;
+      }
+      setIsVerifyingOtp(true);
+      const res = await authApiWithToast.verifyOtp({ otpId, code: otp });
+      const verified = res?.data?.verified;
+      if (verified) {
+        setOtpVerified(true);
+        toast.success('OTP verified');
+      } else {
+        toast.error('Invalid OTP');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err.message || 'Failed to verify OTP');
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -149,6 +213,36 @@ const Register = () => {
               </div>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+              )}
+              {/* OTP Controls for Buyer */}
+              {userRole === 'buyer' && (
+                <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                    onClick={requestOtp}
+                    disabled={isSendingOtp}
+                  >
+                    {isSendingOtp ? 'Sending OTP...' : 'Generate OTP'}
+                  </button>
+                  <input
+                    className="border rounded px-3 py-2 flex-1"
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                    onClick={verifyOtp}
+                    disabled={isVerifyingOtp}
+                  >
+                    {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+              )}
+              {userRole === 'buyer' && otpVerified && (
+                <div className="mt-2 text-green-700 text-sm">OTP Verified</div>
               )}
             </div>
 

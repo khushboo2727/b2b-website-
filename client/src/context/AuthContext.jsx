@@ -27,10 +27,11 @@ export const AuthProvider = ({ children }) => {
         try {
           // Verify token with backend
           const response = await authAPI.getCurrentUser();
-          setUser(response.data.user);
+          // Server returns the user object directly (not wrapped)
+          setUser(response.data);
           setIsAuthenticated(true);
         } catch (error) {
-          // Token is invalid, clear storage
+          // Token is invalid or expired, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);

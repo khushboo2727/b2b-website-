@@ -1,54 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { rfqAPI } from '../../services/api';
 import SellerLayout from '../../components/layout/SellerLayout';
-import { FileText, Eye, Clock, CheckCircle, XCircle, Crown, Unlock } from 'lucide-react';
+import { leadAPI } from '../../services/api';
+import { FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 const SellerRFQs = () => {
-  const [rfqs, setRFQs] = useState([]);
+  const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [hasActiveMembership, setHasActiveMembership] = useState(false);
-  const [membershipStatus, setMembershipStatus] = useState('Free');
+  const [membershipPlan, setMembershipPlan] = useState('');
 
   useEffect(() => {
-    const fetchRFQs = async () => {
+    const fetchLeads = async () => {
       try {
-        const response = await rfqAPI.getSellerRFQs();
-        setRFQs(response.data.rfqs || []);
-        setHasActiveMembership(response.data.hasActiveMembership);
-        setMembershipStatus(response.data.membershipStatus);
+        const response = await leadAPI.getForSeller();
+        setLeads(response.data.leads || []);
+        setMembershipPlan(response.data.membershipPlan || '');
       } catch (error) {
-        console.error('Error fetching RFQs:', error);
+        console.error('Error fetching Leads:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRFQs();
+    fetchLeads();
   }, []);
-
-  const handleViewDetails = async (rfqId, isActive) => {
-    try {
-      if (!isActive) return;
-      // fire-and-forget; if fails, just log
-      await rfqAPI.markAsOpened(rfqId);
-    } catch (err) {
-      console.warn('Failed to mark RFQ as opened:', err?.response?.data || err.message);
-    }
-  };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: Clock },
-      quoted: { color: 'bg-green-100 text-green-800', text: 'Quoted', icon: CheckCircle },
-      accepted: { color: 'bg-blue-100 text-blue-800', text: 'Accepted', icon: CheckCircle },
-      rejected: { color: 'bg-red-100 text-red-800', text: 'Rejected', icon: XCircle }
+      open: { color: 'bg-yellow-100 text-yellow-800', text: 'Open', icon: Clock },
+      closed: { color: 'bg-green-100 text-green-800', text: 'Closed', icon: CheckCircle },
+      inactive: { color: 'bg-gray-200 text-gray-700', text: 'Inactive', icon: XCircle }
     };
-    
-    const config = statusConfig[status] || statusConfig.pending;
+
+    const config = statusConfig[status] || statusConfig.open;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -56,59 +41,6 @@ const SellerRFQs = () => {
       </span>
     );
   };
-
-  const MembershipUpgradeCard = () => (
-    <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 rounded-lg p-6 mb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Crown className="h-8 w-8 text-yellow-600 mr-3" />
-          <div>
-            <h3 className="text-lg font-semibold text-yellow-800">Upgrade to Premium</h3>
-            <p className="text-yellow-700 text-sm">
-              View complete buyer details and contact information
-            </p>
-          </div>
-        </div>
-        <Link
-          to="/membership-plans"
-          className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
-        >
-          Upgrade Now
-        </Link>
-      </div>
-    </div>
-  );
-
-  const BlurredContactCard = ({ rfq }) => (
-    <div className="relative">
-      <div className="filter blur-sm pointer-events-none">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-medium text-gray-900 mb-2">Buyer Contact</h4>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div>Name: {rfq.buyerContact?.name || 'B***'}</div>
-            <div>Email: {rfq.buyerContact?.email || '***@***.com'}</div>
-            <div>Phone: {rfq.buyerContact?.phone || '***-***-****'}</div>
-            {rfq.buyerContact?.companyName && (
-              <div>Company: {rfq.buyerContact.companyName}</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="bg-white bg-opacity-90 p-4 rounded-lg text-center">
-          <Unlock className="h-6 w-6 text-yellow-600 mx-auto mb-2" />
-          <p className="text-sm font-medium text-gray-900">Premium Required</p>
-          <p className="text-xs text-gray-600 mb-3">{rfq.upgradeMessage}</p>
-          <Link
-            to="/membership-plans"
-            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700 transition-colors"
-          >
-            Upgrade
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -127,137 +59,72 @@ const SellerRFQs = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">RFQ Management</h1>
-              <p className="text-gray-600 mt-2">Manage incoming Request for Quotes</p>
+              <h1 className="text-2xl font-bold text-gray-900">Lead Management</h1>
+              <p className="text-gray-600 mt-2">Manage incoming buyer inquiries</p>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                hasActiveMembership 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {membershipStatus} Member
-              </span>
-              {hasActiveMembership && (
-                <Crown className="h-5 w-5 text-yellow-500" />
+              {membershipPlan && (
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  membershipPlan === 'Premium' 
+                    ? 'bg-purple-100 text-purple-800' 
+                    : membershipPlan === 'Basic'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {membershipPlan} Member
+                </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Membership Upgrade Card */}
-        {!hasActiveMembership && <MembershipUpgradeCard />}
-
-        {/* RFQ List */}
+        {/* Leads List */}
         <div className="bg-white rounded-lg shadow">
-          {rfqs.length === 0 ? (
+          {leads.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No RFQs found</h3>
-              <p className="text-gray-500">
-                RFQs will appear here when buyers request quotes for products in your categories
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No leads found</h3>
+              <p className="text-gray-500">Leads will appear here when buyers inquire about your products</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {rfqs.map((rfq) => (
-                <div key={rfq._id} className="p-6 hover:bg-gray-50 transition-colors">
+              {leads.map((lead) => (
+                <div key={lead._id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          RFQ #{rfq.rfqNumber}
-                        </h3>
-                        {getStatusBadge(rfq.status)}
-                        {!rfq.isActive && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Closed</span>
-                        )}
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
-                          Opens: {rfq.openCount || 0}/5
-                        </span>
-                        {rfq.membershipRequired && (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                            <Crown className="w-3 h-3 mr-1" />
-                            Premium Required
-                          </span>
+                        <h3 className="text-lg font-semibold text-gray-900">Lead</h3>
+                        {getStatusBadge(lead.status)}
+                        {!lead.isActive && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-700">Inactive</span>
                         )}
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <h4 className="font-medium text-gray-900 mb-2">Product Details</h4>
                           <div className="space-y-1 text-sm text-gray-600">
-                            <div>Product: {rfq.productId?.title || 'N/A'}</div>
-                            <div>Category: {rfq.productId?.category || 'N/A'}</div>
-                            <div>Quantity: {rfq.quantity} units</div>
-                            {rfq.targetPrice && (
-                              <div>Target Price: ₹{rfq.targetPrice}</div>
+                            <div>Product: {lead.productId?.name || lead.productId?.title || 'N/A'}</div>
+                            <div>Category: {lead.category || lead.productId?.category || 'N/A'}</div>
+                            <div>Quantity: {lead.quantity || 1} units</div>
+                            {lead.budget && (
+                              <div>Budget: {lead.budget}</div>
                             )}
                           </div>
                         </div>
-                        
-                        <div>
-                          {hasActiveMembership ? (
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Buyer Contact</h4>
-                              <div className="space-y-1 text-sm text-gray-600">
-                                <div>Name: {rfq.buyerContact?.name || rfq.buyerId?.name || 'N/A'}</div>
-                                <div>Email: {rfq.buyerContact?.email || rfq.buyerId?.email || 'N/A'}</div>
-                                <div>Phone: {rfq.buyerContact?.phone || rfq.buyerId?.phone || 'N/A'}</div>
-                                {rfq.buyerContact?.companyName && (
-                                  <div>Company: {rfq.buyerContact.companyName}</div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <BlurredContactCard rfq={rfq} />
-                          )}
-                        </div>
+
+                        {/* Buyer details intentionally hidden */}
                       </div>
 
-                      {rfq.message && (
+                      {lead.message && (
                         <div className="bg-gray-50 p-3 rounded-lg mb-4">
                           <h4 className="font-medium text-gray-900 mb-1">Message</h4>
-                          <p className="text-sm text-gray-600">{rfq.message}</p>
-                        </div>
-                      )}
-                      {!rfq.isActive && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded">
-                          This RFQ is closed after reaching the 5-view limit.
+                          <p className="text-sm text-gray-600">{lead.message}</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="ml-6 flex flex-col space-y-2">
-                      <button
-                        className={`flex items-center px-3 py-2 text-sm ${rfq.isActive ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400'} rounded-lg transition-colors`}
-                        disabled={!rfq.isActive}
-                        onClick={() => handleViewDetails(rfq._id, rfq.isActive)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </button>
-                      
-                      {rfq.status === 'pending' && hasActiveMembership && (
-                        <button
-                          className={`flex items-center px-3 py-2 text-sm ${rfq.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400'} rounded-lg transition-colors`}
-                          disabled={!rfq.isActive}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Submit Quote
-                        </button>
-                      )}
-                      
-                      {rfq.status === 'pending' && !hasActiveMembership && (
-                        <Link
-                          to="/membership-plans"
-                          className="flex items-center px-3 py-2 text-sm text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                        >
-                          <Crown className="w-4 h-4 mr-2" />
-                          Upgrade to Quote
-                        </Link>
-                      )}
-                    </div>
+                    {/* RFQ-specific actions removed */}
                   </div>
                 </div>
               ))}

@@ -3,7 +3,6 @@ import { Users, UserCheck, UserX, MessageSquare, TrendingUp, Clock, Headphones }
 import { adminAPI } from '../../services/apiWithToast';
 import { useToast } from '../../context/ToastContext';
 import AdminLayout from '../../components/layout/AdminLayout';
-import AdminMessages from '../../components/admin/AdminMessages';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -208,14 +207,7 @@ const AdminDashboard = () => {
           )}
         </div>
 
-        {/* Seller Messages Section */}
-        <div className="mt-8">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Seller Messages</h2>
-            <p className="text-gray-600">View and respond to seller inquiries</p>
-          </div>
-          <AdminMessages />
-        </div>
+        {/* Messages moved to dedicated page; link available in Quick Actions */}
 
         {/* Quick Actions */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -231,6 +223,12 @@ const AdminDashboard = () => {
             <p className="text-sm text-gray-500">View sellers and memberships</p>
           </Link>
           
+          <Link to="/admin/messages" className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
+            <MessageSquare className="h-8 w-8 text-purple-600 mb-2" />
+            <h3 className="font-medium text-gray-900">Manage Messages</h3>
+            <p className="text-sm text-gray-500">View and respond to seller messages</p>
+          </Link>
+
           <Link to="/admin/inquiries" className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow text-left">
             <MessageSquare className="h-8 w-8 text-purple-600 mb-2" />
             <h3 className="font-medium text-gray-900">View Inquiries</h3>

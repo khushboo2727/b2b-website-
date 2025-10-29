@@ -17,7 +17,7 @@ const SellerLayout = ({ children }) => {
         </main>
       </div>
       
-      {/* Admin Chatbot - Available on all seller pages */}
+      {/* Floating Admin Chatbot */}
       <AdminChatbot />
     </div>
   );

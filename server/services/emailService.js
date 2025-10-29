@@ -338,10 +338,13 @@ const sendViaBrevoEmail = async ({ to, subject, html, senderName, senderEmail })
 //   sendLeadThankYouToBuyer
 // };
 // Send OTP email
-export const sendOtpEmail = async (to, code, name = 'User') => {
+// Send OTP email
+export const sendOtpEmail = async (to, code, name = 'User', role = 'Buyer') => {
+  const roleLabel = role.toLowerCase() === 'seller' ? 'Seller' : 'Buyer';
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Your OTP for Seller Registration</h2>
+      <h2 style="color: #2563eb;">Your OTP for ${roleLabel} Registration</h2>
       <p>Hi ${name},</p>
       <p>Your OTP code is:</p>
       <div style="font-size: 28px; font-weight: bold; letter-spacing: 4px; margin: 16px 0; color: #111827;">
@@ -357,7 +360,7 @@ export const sendOtpEmail = async (to, code, name = 'User') => {
       try {
         const result = await sendViaBrevoEmail({
           to,
-          subject: 'Niryat Business: OTP Verification',
+          subject: `Niryat Business: OTP Verification for ${roleLabel}`,
           html,
         });
         return { success: true, messageId: result.messageId };
@@ -368,7 +371,7 @@ export const sendOtpEmail = async (to, code, name = 'User') => {
           await transporter.sendMail({
             from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
             to,
-            subject: 'Niryat Business: OTP Verification',
+            subject: `Niryat Business: OTP Verification for ${roleLabel}`,
             html,
           });
           console.log('✅ Fallback email (SMTP/service) sent successfully');
@@ -382,7 +385,7 @@ export const sendOtpEmail = async (to, code, name = 'User') => {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to,
-      subject: 'Niryat Business: OTP Verification',
+      subject: `Niryat Business: OTP Verification for ${roleLabel}`,
       html,
     });
     return { success: true };

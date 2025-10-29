@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useApi } from '../hooks/useApi';
+import { rfqAPI } from '../services/api';
 
 const RFQForm = ({ product, onClose, onSuccess }) => {
   const { user } = useAuth();
-  const { apiWithToast } = useApi();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     quantity: 1,
@@ -62,7 +61,7 @@ const RFQForm = ({ product, onClose, onSuccess }) => {
         ...formData
       };
 
-      await apiWithToast.post('/api/rfq', rfqData);
+      await rfqAPI.submit(rfqData);
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -202,13 +201,14 @@ const RFQForm = ({ product, onClose, onSuccess }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name
+                    Company Name *
                   </label>
                   <input
                     type="text"
                     name="buyerContact.companyName"
                     value={formData.buyerContact.companyName}
                     onChange={handleInputChange}
+                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>

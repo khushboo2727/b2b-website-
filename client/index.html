@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <title>Document</title>
+    <style>
+      /* Scope change: only convert Tailwind bg-blue-600 to #ff6600 */
+      .bg-blue-600,
+      .hover\:bg-blue-600:hover {
+        background-color: #ff6600 !important;
+      }
+    </style>
 </head>
 <body>
     <div id="root"></div>

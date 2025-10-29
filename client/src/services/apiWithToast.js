@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Ensure base URL always includes '/api' suffix regardless of env configuration
+const rawBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
 
 // Create axios instance
 const api = axios.create({
@@ -51,10 +53,8 @@ api.interceptors.response.use(
           errorMessage = data.msg || data.message || 'Bad request';
           break;
         case 401:
-          errorMessage = 'Unauthorized access';
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          // Do not auto-logout on every 401. Let AuthContext/ProtectedRoute handle redirects.
+          errorMessage = data?.message || 'Unauthorized access';
           break;
         case 403:
           errorMessage = 'Access forbidden';
@@ -184,7 +184,7 @@ export const productAPI = {
 export const leadAPI = {
   create: (leadData) => 
     makeApiCall(
-      () => api.post('/lead', leadData),
+      () => api.post('/leads', leadData),
       'lead-create',
       'Inquiry sent successfully!'
     ),
@@ -195,7 +195,7 @@ export const leadAPI = {
     ),
   updateStatus: (leadId, status) => 
     makeApiCall(
-      () => api.patch(`/lead/${leadId}/status`, { status }),
+      () => api.patch(`/leads/${leadId}/status`, { status }),
       `lead-update-${leadId}`,
       'Lead status updated successfully!'
     ),
@@ -229,9 +229,9 @@ export const membershipAPI = {
       () => api.get('/membership/plans'),
       'membership-plans'
     ),
-  subscribe: (planId) => 
+  subscribe: (planId, data = {}) => 
     makeApiCall(
-      () => api.post(`/membership/subscribe/${planId}`),
+      () => api.post(`/membership/subscribe/${planId}`, data),
       `membership-subscribe-${planId}`,
       'Successfully subscribed to plan!'
     ),

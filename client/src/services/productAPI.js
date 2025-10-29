@@ -90,7 +90,7 @@ export const productAPI = {
   // Get product categories
   getCategories: async () => {
     try {
-      const response = await api.get('/api/categories');
+      const response = await api.get('/api/products/categories');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

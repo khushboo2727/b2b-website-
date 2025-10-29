@@ -39,21 +39,21 @@ const SellerSidebar = () => {
       path: '/seller/products',
       icon: Package
     },
-    // {
-    //   name: 'Leads',
-    //   path: '/seller/leads',
-    //   icon: BarChart3
-    // },
     {
-      name: 'RFQs',
-      path: '/seller/rfqs',
-      icon: FileText
+      name: 'Leads',
+      path: '/seller/leads',
+      icon: BarChart3
     },
     // {
-    //   name: 'All Leads',
-    //   path: '/seller/all-leads',
-    //   icon: Users
+    //   name: 'RFQs',
+    //   path: '/seller/rfqs',
+    //   icon: FileText
     // },
+    {
+      name: 'All Leads',
+      path: '/seller/all-leads',
+      icon: Users
+    },
     {
       name: 'Settings',
       path: '/seller/settings',

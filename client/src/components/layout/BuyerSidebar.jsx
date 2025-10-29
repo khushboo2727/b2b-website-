@@ -22,11 +22,11 @@ const BuyerSidebar = () => {
       path: '/buyer/dashboard',
       icon: Home
     },
-    {
-      name: 'My RFQs',
-      path: '/buyer/rfqs',
-      icon: FileText
-    },
+    // {
+    //   name: 'My RFQs',
+    //   path: '/buyer/rfqs',
+    //   icon: FileText
+    // },
     {
       name: 'Browse Products',
       path: '/products',

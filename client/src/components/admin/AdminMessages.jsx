@@ -10,17 +10,76 @@ const AdminMessages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [polling, setPolling] = useState(true);
+  const lastTimesRef = React.useRef({});
+  const initializedRef = React.useRef(false);
+  const audioCtxRef = React.useRef(null);
+  const selectedLastTimeRef = React.useRef(null);
 
   useEffect(() => {
     fetchConversations();
   }, []);
+
+  useEffect(() => {
+    if (!polling) return;
+    const interval = setInterval(() => {
+      pollConversations();
+      if (selectedConversation?.sellerId) {
+        pollMessages(selectedConversation.sellerId);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [polling, selectedConversation]);
+
+  const playBeep = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = AC ? new AC() : null;
+      }
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      oscillator.stop(ctx.currentTime + 0.26);
+    } catch (e) {
+      // silently ignore audio errors
+    }
+  };
 
   const fetchConversations = async () => {
     try {
       setLoading(true);
       // Get all admin messages/conversations
       const response = await messageAPI.getAdminMessages();
-      setConversations(response.data.conversations || []);
+      const incoming = Array.isArray(response.data) ? response.data : (response.data?.conversations || []);
+      const normalized = incoming.map((c) => ({
+        sellerId: c.seller?._id || c.sellerId || (c.seller && c.seller.id),
+        sellerName: c.seller?.name || c.sellerName || 'Seller',
+        sellerEmail: c.seller?.email || c.sellerEmail || '',
+        unreadCount: c.unreadCount || 0,
+        lastMessage: c.lastMessage?.content || c.lastMessage || '',
+        lastMessageTime: c.lastMessage?.createdAt || c.lastMessageTime || new Date().toISOString(),
+        lastMessageSenderType: c.lastMessage?.senderType || c.lastMessageSenderType || undefined
+      }));
+      setConversations(normalized);
+      // Prime lastTimes on first load to avoid spurious beep
+      if (!initializedRef.current) {
+        normalized.forEach(c => {
+          if (c.sellerId && c.lastMessageTime) {
+            lastTimesRef.current[c.sellerId] = new Date(c.lastMessageTime).getTime();
+          }
+        });
+        initializedRef.current = true;
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast.error('Failed to load conversations');
@@ -29,13 +88,66 @@ const AdminMessages = () => {
     }
   };
 
+  const pollConversations = async () => {
+    try {
+      const response = await messageAPI.getAdminMessages();
+      const incoming = Array.isArray(response.data) ? response.data : (response.data?.conversations || []);
+      const normalized = incoming.map((c) => ({
+        sellerId: c.seller?._id || c.sellerId || (c.seller && c.seller.id),
+        sellerName: c.seller?.name || c.sellerName || 'Seller',
+        sellerEmail: c.seller?.email || c.sellerEmail || '',
+        unreadCount: c.unreadCount || 0,
+        lastMessage: c.lastMessage?.content || c.lastMessage || '',
+        lastMessageTime: c.lastMessage?.createdAt || c.lastMessageTime || new Date().toISOString(),
+        lastMessageSenderType: c.lastMessage?.senderType || c.lastMessageSenderType || undefined
+      }));
+      // Detect new seller messages
+      normalized.forEach(c => {
+        const ts = c.lastMessageTime ? new Date(c.lastMessageTime).getTime() : 0;
+        const prev = lastTimesRef.current[c.sellerId] || 0;
+        if (ts > prev && c.lastMessageSenderType === 'seller') {
+          playBeep();
+        }
+        if (c.sellerId) lastTimesRef.current[c.sellerId] = ts;
+      });
+      setConversations(normalized);
+    } catch (error) {
+      // swallow polling errors to avoid noisy toasts
+    }
+  };
+
   const fetchMessages = async (sellerId) => {
     try {
       const response = await messageAPI.getAdminConversationWith(sellerId);
-      setMessages(response.data.messages || []);
+      const msgs = response.data.messages || [];
+      setMessages(msgs);
+      // Update last seen time for selected convo; beep on new seller msg
+      const lastSellerMsg = [...msgs].reverse().find(m => m.senderType === 'seller');
+      const ts = lastSellerMsg ? new Date(lastSellerMsg.createdAt).getTime() : null;
+      if (selectedLastTimeRef.current && ts && ts > selectedLastTimeRef.current) {
+        playBeep();
+      }
+      selectedLastTimeRef.current = ts || selectedLastTimeRef.current;
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load messages');
+    }
+  };
+
+  const pollMessages = async (sellerId) => {
+    try {
+      const response = await messageAPI.getAdminConversationWith(sellerId);
+      const msgs = response.data.messages || [];
+      // Detect new seller message
+      const lastSellerMsg = [...msgs].reverse().find(m => m.senderType === 'seller');
+      const ts = lastSellerMsg ? new Date(lastSellerMsg.createdAt).getTime() : null;
+      if (selectedLastTimeRef.current && ts && ts > selectedLastTimeRef.current) {
+        playBeep();
+      }
+      selectedLastTimeRef.current = ts || selectedLastTimeRef.current;
+      setMessages(msgs);
+    } catch (error) {
+      // ignore polling errors
     }
   };
 
@@ -44,23 +156,21 @@ const AdminMessages = () => {
 
     try {
       setSending(true);
-      const messageData = {
-        sellerId: selectedConversation.sellerId,
-        message: newMessage.trim(),
-        type: 'admin_reply'
-      };
+      const response = await messageAPI.sendAdminReply(
+        selectedConversation.sellerId,
+        { message: newMessage.trim() }
+      );
 
-      const response = await messageAPI.sendAdminReply(messageData);
-      
-      // Add message to local state
-      const newMsg = {
-        _id: response.data._id || Date.now().toString(),
-        message: newMessage.trim(),
+      // Add message to local state (use server response if available)
+      const created = response?.data?.data;
+      const newMsg = created || {
+        _id: Date.now().toString(),
+        content: newMessage.trim(),
         senderType: 'admin',
         createdAt: new Date().toISOString(),
         isRead: false
       };
-      
+
       setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
       toast.success('Reply sent successfully');
@@ -75,6 +185,7 @@ const AdminMessages = () => {
   const handleConversationSelect = (conversation) => {
     setSelectedConversation(conversation);
     fetchMessages(conversation.sellerId);
+    selectedLastTimeRef.current = null; // reset per selection
   };
 
   const handleKeyPress = (e) => {
@@ -189,7 +300,7 @@ const AdminMessages = () => {
                             {!isFromAdmin && (
                               <p className="text-xs font-semibold mb-1 text-gray-500">Seller</p>
                             )}
-                            <p className="text-sm">{message.message}</p>
+                            <p className="text-sm">{message.content || message.message}</p>
                             <div className="flex items-center justify-between mt-2">
                               <p className={`text-xs ${
                                 isFromAdmin ? 'text-blue-100' : 'text-gray-500'
