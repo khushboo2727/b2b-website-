@@ -13,9 +13,21 @@ router.post('/',
   authenticateUser,
   authorizeRoles(['buyer']),
   async (req, res) => {
-    const { productId, message, buyerContact, quantity, budget } = req.body;
+    const { productId, message, buyerContact, quantity, budget,
+      importProduct, annualVolume, targetPriceRange, lastImportCountry, frequency } = req.body;
 
     try {
+      // Check limits for unverified buyers
+      const buyer = await User.findById(req.user.user.id);
+      if (!buyer.verified) {
+        const leadCount = await Lead.countDocuments({ buyerId: req.user.user.id });
+        if (leadCount >= 3) {
+          return res.status(403).json({
+            message: 'Unverified buyers can only send 3 inquiries. Please verify your domain in Profile to unlock unlimited inquiries.'
+          });
+        }
+      }
+
       // Get product details to find category
       const product = await Product.findById(productId);
       if (!product) {
@@ -23,9 +35,9 @@ router.post('/',
       }
 
       // Find all sellers in the same category
-      const categoryProducts = await Product.find({ 
+      const categoryProducts = await Product.find({
         category: product.category,
-        isActive: true 
+        isActive: true
       }).distinct('sellerId');
 
       const newLead = new Lead({
@@ -35,6 +47,13 @@ router.post('/',
         buyerContact,
         quantity,
         budget,
+        // Questionnaire
+        importProduct,
+        annualVolume,
+        targetPriceRange,
+        lastImportCountry,
+        frequency: frequency || undefined,
+
         category: product.category,
         distributedTo: categoryProducts.map(sellerId => ({ sellerId }))
       });
@@ -95,9 +114,9 @@ router.post('/',
       } catch (notifyErr) {
         console.error('Notification error (quote distribution):', notifyErr);
       }
-      
-  res.status(201).json(lead);
-  } catch (err) {
+
+      res.status(201).json(lead);
+    } catch (err) {
       console.error(err.message);
       res.status(500).send('Server Error');
     }
@@ -148,43 +167,43 @@ router.get('/',
   authorizeRoles(['seller']),
   async (req, res) => {
     try {
-      const { 
-        status, 
-        isRead, 
-        dateFrom, 
-        dateTo, 
-        productId, 
-        buyerName, 
+      const {
+        status,
+        isRead,
+        dateFrom,
+        dateTo,
+        productId,
+        buyerName,
         priority,
-        page = 1, 
-        limit = 10 
+        page = 1,
+        limit = 10
       } = req.query;
-      
+
       const user = await User.findById(req.user.user.id).populate('membershipPlan');
-      
+
       // CHANGED: Don’t block if no membership; default to 'Free'
       const membershipPlanName = user.membershipPlan?.name || 'Free';
-      
+
       // Build filter query
       let filterQuery = {
         productId: { $in: await Product.find({ sellerId: req.user.user.id }).distinct('_id') }
       };
-      
+
       // Apply filters
       if (status) filterQuery.status = status;
       if (isRead !== undefined) filterQuery.isRead = isRead === 'true';
       if (priority) filterQuery.priority = priority;
       if (productId) filterQuery.productId = productId;
-      
+
       // Date range filter
       if (dateFrom || dateTo) {
         filterQuery.createdAt = {};
         if (dateFrom) filterQuery.createdAt.$gte = new Date(dateFrom);
         if (dateTo) filterQuery.createdAt.$lte = new Date(dateTo);
       }
-      
+
       const totalLeads = await Lead.countDocuments(filterQuery);
-      
+
       let leads = await Lead.find(filterQuery)
         .populate([
           { path: 'buyerId', select: 'name email' },
@@ -193,11 +212,11 @@ router.get('/',
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
-      
+
       // Mask contact info for Free plan
       const enhancedLeads = leads.map(lead => {
         const leadObj = lead.toObject();
-        
+
         if (membershipPlanName === 'Free') {
           if (leadObj.buyerContact) {
             leadObj.buyerContact = {
@@ -211,10 +230,10 @@ router.get('/',
             email: 'upgrade@required.com'
           };
         }
-        
+
         return leadObj;
       });
-      
+
       res.json({
         leads: enhancedLeads,
         pagination: {
@@ -241,35 +260,35 @@ router.get('/all',
   authorizeRoles(['seller']),
   async (req, res) => {
     try {
-      const { 
+      const {
         category,
-        status, 
-        dateFrom, 
+        status,
+        dateFrom,
         dateTo,
         includeExpired,
-        page = 1, 
-        limit = 10 
+        page = 1,
+        limit = 10
       } = req.query;
-      
+
       // Build filter query for all leads
       let filterQuery = {};
-      
+
       // Default: show last 48 hours only, unless includeExpired=true or date range is provided
       if (!(includeExpired === 'true')) {
         const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
         filterQuery.createdAt = { $gte: fortyEightHoursAgo };
       }
-      
+
       // Apply filters
       if (status) filterQuery.status = status;
-      
+
       // Date range filter (override 48 hour filter if specified)
       if (dateFrom || dateTo) {
         filterQuery.createdAt = {};
         if (dateFrom) filterQuery.createdAt.$gte = new Date(dateFrom);
         if (dateTo) filterQuery.createdAt.$lte = new Date(dateTo);
       }
-      
+
       let aggregationPipeline = [
         { $match: filterQuery },
         {
@@ -291,28 +310,28 @@ router.get('/all',
         },
         { $unwind: '$buyer' }
       ];
-      
+
       // Category filter
       if (category) {
         aggregationPipeline.push({
           $match: { 'product.category': category }
         });
       }
-      
+
       // Count total leads
       const countPipeline = [...aggregationPipeline, { $count: 'total' }];
       const countResult = await Lead.aggregate(countPipeline);
       const totalLeads = countResult[0]?.total || 0;
-      
+
       // Add pagination
       aggregationPipeline.push(
         { $sort: { createdAt: -1 } },
         { $skip: (page - 1) * limit },
         { $limit: parseInt(limit) }
       );
-      
+
       const leads = await Lead.aggregate(aggregationPipeline);
-      
+
       res.json({
         leads,
         pagination: {
@@ -339,27 +358,27 @@ router.patch('/:id/read',
   async (req, res) => {
     try {
       const { isRead } = req.body;
-      
+
       const lead = await Lead.findById(req.params.id);
       if (!lead) {
         return res.status(404).json({ msg: 'Lead not found' });
       }
-      
+
       // Verify seller owns this lead's product
       const product = await Product.findById(lead.productId);
       if (product.sellerId.toString() !== req.user.user.id) {
         return res.status(403).json({ msg: 'Access denied' });
       }
-      
+
       lead.isRead = isRead;
       if (isRead) {
         lead.readAt = new Date();
       } else {
         lead.readAt = undefined;
       }
-      
+
       await lead.save();
-      
+
       res.json({ msg: 'Lead status updated', lead });
     } catch (err) {
       console.error(err.message);
@@ -376,7 +395,7 @@ router.patch('/:id/status',
   authorizeRoles(['seller']),
   async (req, res) => {
     const { status } = req.body;
-    
+
     if (!['open', 'closed'].includes(status)) {
       return res.status(400).json({ msg: 'Invalid status. Must be "open" or "closed"' });
     }
@@ -384,22 +403,22 @@ router.patch('/:id/status',
     try {
       // Find the lead and verify it belongs to seller's product
       const lead = await Lead.findById(req.params.id).populate('productId');
-      
+
       if (!lead) {
         return res.status(404).json({ msg: 'Lead not found' });
       }
-      
+
       if (lead.productId.sellerId.toString() !== req.user.user.id) {
         return res.status(403).json({ msg: 'Not authorized to update this lead' });
       }
-      
+
       lead.status = status;
       await lead.save();
-      
+
       // Create notification for seller
       const buyer = await User.findById(buyerId);
       const product = await Product.findById(productId).populate('sellerId');
-      
+
       if (product && product.sellerId) {
         await NotificationService.createInquiryNotification(
           product.sellerId._id,
@@ -407,7 +426,7 @@ router.patch('/:id/status',
           buyer
         );
       }
-      
+
       res.json({ msg: `Lead status updated to ${status}`, lead });
     } catch (err) {
       console.error(err.message);
@@ -467,7 +486,7 @@ router.post('/:id/purchase',
       });
 
       await lead.save();
-      
+
       res.json({ message: 'Lead purchased successfully', lead });
     } catch (err) {
       console.error(err.message);
@@ -504,25 +523,25 @@ router.post('/:id/view',
       const alreadyViewed = lead.viewedBy.some(
         view => view.sellerId.toString() === sellerId
       );
-      
+
       if (!alreadyViewed) {
         // Add to viewed list
         lead.viewedBy.push({ sellerId });
-        
+
         // Check if reached max views limit
         if (lead.viewedBy.length >= lead.maxViews) {
           lead.isActive = false;
           lead.status = 'inactive';
         }
-        
+
         await lead.save();
       }
-      
+
       // Return lead with buyer details only if active
       const leadData = await Lead.findById(leadId)
         .populate('buyerId', 'name email')
         .populate('productId', 'title category');
-      
+
       // Hide buyer contact details if lead is inactive
       if (!lead.isActive) {
         leadData.buyerContact = {
@@ -531,7 +550,7 @@ router.post('/:id/view',
           companyName: 'Hidden - Lead inactive'
         };
       }
-      
+
       res.json(leadData);
     } catch (err) {
       console.error(err.message);
@@ -550,24 +569,24 @@ router.get('/purchased',
     try {
       const sellerId = req.user.user.id;
       const { page = 1, limit = 10, category } = req.query;
-      
+
       let query = {
         'purchasedBy.sellerId': sellerId
       };
-      
+
       if (category) {
         query.category = category;
       }
-      
+
       const leads = await Lead.find(query)
         .populate('buyerId', 'name email')
         .populate('productId', 'title category')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
-      
+
       const total = await Lead.countDocuments(query);
-      
+
       res.json({
         leads,
         totalPages: Math.ceil(total / limit),

@@ -1,4 +1,4 @@
-import React, { useMemo, useState , useEffect} from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { CheckCircle, ArrowLeft, ArrowRight, ShieldCheck, Upload, Building2, FileText, Globe, Image as ImageIcon } from 'lucide-react';
@@ -62,7 +62,7 @@ const initialState = {
   totalEmployees: '',
 
   // Step 6: Images (min 2 with specific tags)
-  videos: [], 
+  videos: [],
   images: [], // [{url, tag}]
 };
 
@@ -91,7 +91,7 @@ function SellerRegister() {
   const [iecError, setIecError] = useState('');
   const progress = useMemo(() => Math.round((current) * 100 / (steps.length - 1)), [current]);
 
- const addVideoFromFile = async (file) => {
+  const addVideoFromFile = async (file) => {
     // Check file size (max 50MB)
     const maxSizeMB = 50;
     if (file.size > maxSizeMB * 1024 * 1024) {
@@ -102,20 +102,20 @@ function SellerRegister() {
     // Check video duration (max 1 minute)
     const video = document.createElement('video');
     video.preload = 'metadata';
-    
+
     video.onloadedmetadata = async () => {
       window.URL.revokeObjectURL(video.src);
       if (video.duration > 60) {
         toast.error('Video duration should be maximum 1 minute');
         return;
       }
-      
+
       // If validation passes, convert to base64 and add to state
       const url = await toBase64(file);
       setData(prev => ({ ...prev, videos: [...(prev.videos || []), { url, tag: 'premises', title: 'Premises video' }] }));
       toast.success('Video added successfully!');
     };
-    
+
     video.src = URL.createObjectURL(file);
   };
   // Prefill Logic
@@ -126,7 +126,7 @@ function SellerRegister() {
     let draft = null;
     try {
       draft = ls ? JSON.parse(ls) : null;
-    } catch {}
+    } catch { }
 
     const prefill = statePrefill || draft;
     if (prefill && typeof prefill === 'object') {
@@ -138,7 +138,7 @@ function SellerRegister() {
         images: Array.isArray(prefill.images) ? prefill.images : prev.images
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInput = (path, value) => {
@@ -180,7 +180,7 @@ function SellerRegister() {
       toast.error(err?.response?.data?.message || err.message || 'Failed to request OTP');
     }
   };
-  
+
   // Update verifyOtp to call backend
   const verifyOtp = async () => {
     try {
@@ -205,7 +205,7 @@ function SellerRegister() {
       toast.error(err?.response?.data?.message || err.message || 'Failed to verify OTP');
     }
   };
-  
+
   // Update verifyGST to call backend
   const verifyGST = async () => {
     try {
@@ -401,7 +401,7 @@ function SellerRegister() {
       setSubmitting(false);
     }
   };
-  
+
 
   return (
     <div className="min-h-screen bg-[#2f3284] py-10">
@@ -416,7 +416,15 @@ function SellerRegister() {
         )}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Become a Seller</h1>
-          <div className="text-sm text-gray-600">Step {current + 1} of {steps.length}</div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/register')}
+              className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full hover:bg-blue-100 font-medium transition-colors"
+            >
+              Register as Buyer
+            </button>
+            <div className="text-sm text-gray-600">Step {current + 1} of {steps.length}</div>
+          </div>
         </div>
 
         {/* Progress */}
@@ -429,7 +437,7 @@ function SellerRegister() {
           {steps.map((s, idx) => (
             <div key={s.key} className={`text-center text-xs ${idx <= current ? 'text-blue-600' : 'text-gray-400'}`}>
               <div className={`mx-auto w-7 h-7 rounded-full flex items-center justify-center ${idx <= current ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                {idx < current ? <CheckCircle className="w-4 h-4 text-blue-600" /> : idx === current ? <span className="font-bold">{idx+1}</span> : <span>{idx+1}</span>}
+                {idx < current ? <CheckCircle className="w-4 h-4 text-blue-600" /> : idx === current ? <span className="font-bold">{idx + 1}</span> : <span>{idx + 1}</span>}
               </div>
               <div className="mt-1">{s.label}</div>
             </div>
@@ -454,20 +462,20 @@ function SellerRegister() {
               </div>
             </div>
             <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Register user as   <span className="text-red-500">*</span></label>
-          <select
-            className="w-full border rounded px-3 py-2"
-            value={data.sellerRole}
-            onChange={(e) => setData(prev => ({ ...prev, sellerRole: e.target.value }))}
-            required
-          >
-            <option value="">Select</option>
-            <option value="Merchant Exporter">Merchant Exporter</option>
-            <option value="Manufacturer & Exporter">Manufacturer & Exporter</option>
-            <option value="Merchant & Manufacturer Exporter">Merchant & Manufacturer Exporter</option>
-            <option value="Only Manufacturer">Only Manufacturer</option>
-          </select>
-           </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Register user as   <span className="text-red-500">*</span></label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={data.sellerRole}
+                onChange={(e) => setData(prev => ({ ...prev, sellerRole: e.target.value }))}
+                required
+              >
+                <option value="">Select</option>
+                <option value="Merchant Exporter">Merchant Exporter</option>
+                <option value="Manufacturer & Exporter">Manufacturer & Exporter</option>
+                <option value="Merchant & Manufacturer Exporter">Merchant & Manufacturer Exporter</option>
+                <option value="Only Manufacturer">Only Manufacturer</option>
+              </select>
+            </div>
 
             <div className="flex gap-3">
               <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded" onClick={requestOtp}>Generate OTP</button>
@@ -480,9 +488,9 @@ function SellerRegister() {
               </div>
             )}
 
-          
-          
-       
+
+
+
           </div>
         )}
 
@@ -497,7 +505,7 @@ function SellerRegister() {
               </div>
 
 
-               <div>
+              <div>
                 <label className="text-sm">
                   Business Type <span className="text-red-500">*</span>
                 </label>
@@ -506,7 +514,7 @@ function SellerRegister() {
                   {businessTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-                            
+
               <div>
                 <label className="text-sm">GST Number</label>
                 <div className="flex gap-2">
@@ -563,7 +571,7 @@ function SellerRegister() {
                   </p>
                 )}
               </div>
-             
+
               <div>
                 <label className="text-sm">
                   Business Category <span className="text-red-500">*</span>
@@ -599,8 +607,8 @@ function SellerRegister() {
                 <input className="w-full border rounded px-3 py-2" value={data.alternatePhone} onChange={e => handleInput('alternatePhone', e.target.value)} />
               </div>
 
-          
-       
+
+
 
             </div>
           </div>
@@ -634,17 +642,17 @@ function SellerRegister() {
                 <input className="w-full border rounded px-3 py-2" value={data.address.country} onChange={e => handleInput(['address', 'country'], e.target.value)} />
               </div>
               <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
-            <input
-              type="text"
-              className="w-full border rounded px-3 py-2"
-              value={data.address?.district || ''}
-              onChange={(e) =>
-                setData(prev => ({ ...prev, address: { ...prev.address, district: e.target.value } }))
-              }
-              placeholder="Enter district"
-            />
-          </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  value={data.address?.district || ''}
+                  onChange={(e) =>
+                    setData(prev => ({ ...prev, address: { ...prev.address, district: e.target.value } }))
+                  }
+                  placeholder="Enter district"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -727,20 +735,20 @@ function SellerRegister() {
                 <label className="text-sm">
                   Account Holder Name <span className="text-red-500">*</span>
                 </label>
-                <input className="w-full border rounded px-3 py-2" value={data.bankDetails.accountHolderName} onChange={e => handleInput(['bankDetails','accountHolderName'], e.target.value)} />
+                <input className="w-full border rounded px-3 py-2" value={data.bankDetails.accountHolderName} onChange={e => handleInput(['bankDetails', 'accountHolderName'], e.target.value)} />
               </div>
               <div>
                 <label className="text-sm">
                   Account Number <span className="text-red-500">*</span>
                 </label>
-                <input className="w-full border rounded px-3 py-2" value={data.bankDetails.accountNumber} onChange={e => handleInput(['bankDetails','accountNumber'], e.target.value)} />
+                <input className="w-full border rounded px-3 py-2" value={data.bankDetails.accountNumber} onChange={e => handleInput(['bankDetails', 'accountNumber'], e.target.value)} />
               </div>
               <div>
                 <label className="text-sm">IFSC Code</label>
                 <input
                   className="w-full border rounded px-3 py-2"
                   value={data.bankDetails.ifscCode}
-                  onChange={e => handleInput(['bankDetails','ifscCode'], e.target.value)}
+                  onChange={e => handleInput(['bankDetails', 'ifscCode'], e.target.value)}
                 />
               </div>
               {/* <div>
@@ -782,7 +790,7 @@ function SellerRegister() {
               <input type="file" accept=".jpg,.jpeg,.png" onChange={e => addImage(e, 'other')} />
             </div>
 
-             {/* ... existing image upload UI ... */}
+            {/* ... existing image upload UI ... */}
 
             <div className="pt-4 border-t">
               <h3 className="text-md font-semibold mb-2">

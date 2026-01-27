@@ -31,9 +31,15 @@ const InquiryForm = ({ product, onClose }) => {
         },
         quantity: parseInt(data.quantity),
         quantityUnit: data.quantityUnit,
-        budget: data.budget // if you want to add budget field
+        budget: data.budget,
+        // Questionnaire
+        importProduct: data.importProduct,
+        annualVolume: data.annualVolume,
+        targetPriceRange: data.targetPriceRange,
+        lastImportCountry: data.lastImportCountry,
+        frequency: data.frequency
       };
-  
+
       await leadAPI.create(inquiryData);
       toast.success('Inquiry sent successfully!');
       reset();
@@ -85,14 +91,14 @@ const InquiryForm = ({ product, onClose }) => {
                   </div>
                 )}
               </div>
-              
+
               {/* Product Details */}
               <div className="space-y-3">
                 <div>
                   <h3 className="font-semibold text-gray-900 text-lg">{product.name}</h3>
                   <p className="text-sm text-gray-600">{product.category}</p>
                 </div>
-                
+
                 <div className="space-y-2 text-sm">
                   {product.minimumOrderQuantity && (
                     <div className="flex justify-between">
@@ -100,12 +106,12 @@ const InquiryForm = ({ product, onClose }) => {
                       <span className="font-medium">{product.minimumOrderQuantity} {product.unit || 'pieces'}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between">
                     <span className="text-gray-600">Supplier:</span>
                     <span className="font-medium">{product.seller?.companyName || product.sellerProfile?.companyName}</span>
                   </div>
-                  
+
                   {product.location && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Location:</span>
@@ -113,7 +119,7 @@ const InquiryForm = ({ product, onClose }) => {
                     </div>
                   )}
                 </div>
-                
+
                 {product.description && (
                   <div>
                     <h4 className="font-medium text-gray-900 mb-1">Description:</h4>
@@ -123,218 +129,269 @@ const InquiryForm = ({ product, onClose }) => {
               </div>
             </div>
           </div>
-          
+
           {/* Form - Right Side */}
           <div className="lg:w-2/3">
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-          {/* Personal Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name *
-              </label>
-              <input
-                {...register('buyerName', { required: 'Name is required' })}
-                type="text"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Your full name"
-              />
-              {errors.buyerName && (
-                <p className="text-red-600 text-sm mt-1">{errors.buyerName.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address *
-              </label>
-              <input
-                {...register('buyerEmail', {
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address'
-                  }
-                })}
-                type="email"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="your.email@company.com"
-              />
-              {errors.buyerEmail && (
-                <p className="text-red-600 text-sm mt-1">{errors.buyerEmail.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number *
-              </label>
-              <input
-                {...register('buyerPhone', { required: 'Phone number is required' })}
-                type="tel"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="+91 9876543210"
-              />
-              {errors.buyerPhone && (
-                <p className="text-red-600 text-sm mt-1">{errors.buyerPhone.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company Name
-              </label>
-              <input
-                {...register('companyName')}
-                type="text"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Your company name"
-              />
-            </div>
-          </div>
-
-          {/* Location Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country *
-              </label>
-              <input
-                type="text"
-                {...register('country', { required: 'Country is required' })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter country"
-              />
-              {errors.country && (
-                <p className="text-red-600 text-sm mt-1">{errors.country.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                State *
-              </label>
-              <input
-                {...register('state', { required: 'State is required' })}
-                type="text"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter state"
-              />
-              {errors.state && (
-                <p className="text-red-600 text-sm mt-1">{errors.state.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                City *
-              </label>
-              <input
-                {...register('city', { required: 'City is required' })}
-                type="text"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter city"
-              />
-              {errors.city && (
-                <p className="text-red-600 text-sm mt-1">{errors.city.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Inquiry Details */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity Required *
-                </label>
-                <div className="flex gap-2">
+              {/* Personal Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name *
+                  </label>
                   <input
-                    {...register('quantity', {
-                      required: 'Quantity is required',
-                      min: {
-                        value: product.minimumOrderQuantity || 1,
-                        message: `Minimum order quantity is ${product.minimumOrderQuantity || 1}`
+                    {...register('buyerName', { required: 'Name is required' })}
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Your full name"
+                  />
+                  {errors.buyerName && (
+                    <p className="text-red-600 text-sm mt-1">{errors.buyerName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address *
+                  </label>
+                  <input
+                    {...register('buyerEmail', {
+                      required: 'Email is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address'
                       }
                     })}
-                    type="number"
-                    min={product.minimumOrderQuantity || 1}
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={`Min: ${product.minimumOrderQuantity || 1}`}
+                    type="email"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="your.email@company.com"
                   />
-                 <select
-                    {...register('quantityUnit', { required: 'Unit is required' })}
-                    className="w-28 border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onFocus={(e) => e.target.size = 5}   // focus karte hi 5 options show
-                    onBlur={(e) => e.target.size = 1}    // blur karte hi normal ho jaye
-                  >
-                    <option value="pieces">Pieces</option>
-                    <option value="kg">Kg</option>
-                    <option value="gram">Gram</option>
-                    <option value="liter">Liter</option>
-                    <option value="ml">ML</option>
-                    <option value="box">Box</option>
-                    <option value="carton">Carton</option>
-                    <option value="dozen">Dozen</option>
-                    <option value="pair">Pair</option>
-                    <option value="set">Set</option>
-                    <option value="meter">Meter</option>
-                    <option value="feet">Feet</option>
-                    <option value="inch">Inch</option>
-                    <option value="yard">Yard</option>
-                    <option value="ton">Ton</option>
-                    <option value="quintal">Quintal</option>
-                    <option value="pack">Pack</option>
-                    <option value="bag">Bag</option>
-                    <option value="bottle">Bottle</option>
-                    <option value="can">Can</option>
-                    <option value="roll">Roll</option>
-                    <option value="sheet">Sheet</option>
-                    <option value="sqft">Sq Ft</option>
-                    <option value="sqm">Sq Meter</option>
-                    <option value="other">Other</option>
-                  </select>
+                  {errors.buyerEmail && (
+                    <p className="text-red-600 text-sm mt-1">{errors.buyerEmail.message}</p>
+                  )}
                 </div>
-                {errors.quantity && (
-                  <p className="text-red-600 text-sm mt-1">{errors.quantity.message}</p>
-                )}
-                {errors.quantityUnit && (
-                  <p className="text-red-600 text-sm mt-1">{errors.quantityUnit.message}</p>
-                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    {...register('buyerPhone', { required: 'Phone number is required' })}
+                    type="tel"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="+91 9876543210"
+                  />
+                  {errors.buyerPhone && (
+                    <p className="text-red-600 text-sm mt-1">{errors.buyerPhone.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Name
+                  </label>
+                  <input
+                    {...register('companyName')}
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Your company name"
+                  />
+                </div>
+              </div>
+
+              {/* Location Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    {...register('country', { required: 'Country is required' })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter country"
+                  />
+                  {errors.country && (
+                    <p className="text-red-600 text-sm mt-1">{errors.country.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    State *
+                  </label>
+                  <input
+                    {...register('state', { required: 'State is required' })}
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter state"
+                  />
+                  {errors.state && (
+                    <p className="text-red-600 text-sm mt-1">{errors.state.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City *
+                  </label>
+                  <input
+                    {...register('city', { required: 'City is required' })}
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter city"
+                  />
+                  {errors.city && (
+                    <p className="text-red-600 text-sm mt-1">{errors.city.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Inquiry Details */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity Required *
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        {...register('quantity', {
+                          required: 'Quantity is required',
+                          min: {
+                            value: product.minimumOrderQuantity || 1,
+                            message: `Minimum order quantity is ${product.minimumOrderQuantity || 1}`
+                          }
+                        })}
+                        type="number"
+                        min={product.minimumOrderQuantity || 1}
+                        className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={`Min: ${product.minimumOrderQuantity || 1}`}
+                      />
+                      <select
+                        {...register('quantityUnit', { required: 'Unit is required' })}
+                        className="w-28 border border-gray-300 rounded-md px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onFocus={(e) => e.target.size = 5}   // focus karte hi 5 options show
+                        onBlur={(e) => e.target.size = 1}    // blur karte hi normal ho jaye
+                      >
+                        <option value="pieces">Pieces</option>
+                        <option value="kg">Kg</option>
+                        <option value="gram">Gram</option>
+                        <option value="liter">Liter</option>
+                        <option value="ml">ML</option>
+                        <option value="box">Box</option>
+                        <option value="carton">Carton</option>
+                        <option value="dozen">Dozen</option>
+                        <option value="pair">Pair</option>
+                        <option value="set">Set</option>
+                        <option value="meter">Meter</option>
+                        <option value="feet">Feet</option>
+                        <option value="inch">Inch</option>
+                        <option value="yard">Yard</option>
+                        <option value="ton">Ton</option>
+                        <option value="quintal">Quintal</option>
+                        <option value="pack">Pack</option>
+                        <option value="bag">Bag</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="can">Can</option>
+                        <option value="roll">Roll</option>
+                        <option value="sheet">Sheet</option>
+                        <option value="sqft">Sq Ft</option>
+                        <option value="sqm">Sq Meter</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    {errors.quantity && (
+                      <p className="text-red-600 text-sm mt-1">{errors.quantity.message}</p>
+                    )}
+                    {errors.quantityUnit && (
+                      <p className="text-red-600 text-sm mt-1">{errors.quantityUnit.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Urgency
+                    </label>
+                    <select
+                      {...register('urgency')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="very_urgent">Very Urgent</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-semibold text-gray-900">Sourcing Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Product You Import</label>
+                    <input
+                      {...register('importProduct')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      placeholder="e.g. Textiles, Electronics"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Annual Import Volume</label>
+                    <input
+                      {...register('annualVolume')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      placeholder="e.g. 5000 units"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Target Price Range</label>
+                    <input
+                      {...register('targetPriceRange')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      placeholder="e.g. $10 - $15"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Importing Country</label>
+                    <input
+                      {...register('lastImportCountry')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      placeholder="e.g. China"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+                    <select
+                      {...register('frequency')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    >
+                      <option value="">Select Frequency</option>
+                      <option value="Monthly">Monthly</option>
+                      <option value="Quarterly">Quarterly</option>
+                      <option value="Yearly">Yearly</option>
+                      <option value="One-time">One-time</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Urgency
+                  Message *
                 </label>
-                <select
-                  {...register('urgency')}
+                <textarea
+                  {...register('message', { required: 'Message is required' })}
+                  rows={4}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="very_urgent">Very Urgent</option>
-                </select>
+                  placeholder="Please provide details about your requirements, delivery timeline, and any specific questions..."
+                />
+                {errors.message && (
+                  <p className="text-red-600 text-sm mt-1">{errors.message.message}</p>
+                )}
               </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Message *
-            </label>
-            <textarea
-              {...register('message', { required: 'Message is required' })}
-              rows={4}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Please provide details about your requirements, delivery timeline, and any specific questions..."
-            />
-            {errors.message && (
-              <p className="text-red-600 text-sm mt-1">{errors.message.message}</p>
-            )}
-          </div>
 
 
 

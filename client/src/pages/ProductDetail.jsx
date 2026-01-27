@@ -75,10 +75,10 @@ function ProductDetail() {
       setProduct((prev) =>
         prev
           ? {
-              ...prev,
-              averageRating: res.data.averageRating,
-              ratingsCount: res.data.ratingsCount,
-            }
+            ...prev,
+            averageRating: res.data.averageRating,
+            ratingsCount: res.data.ratingsCount,
+          }
           : prev
       );
     } catch (e) {
@@ -170,9 +170,8 @@ function ProductDetail() {
                     key={idx}
                     id={`thumb-${idx}`}
                     onClick={() => setSelectedImage(idx)}
-                    className={`mb-2 block rounded border ${
-                      selectedImage === idx ? 'ring-2 ring-purple-500' : 'border-gray-200'
-                    }`}
+                    className={`mb-2 block rounded border ${selectedImage === idx ? 'ring-2 ring-purple-500' : 'border-gray-200'
+                      }`}
                   >
                     <img
                       src={src}
@@ -268,11 +267,7 @@ function ProductDetail() {
                 Request Quote (RFQ)
               </button> */}
 
-              <div className="grid grid-cols-2 gap-3">
-                <button className="flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200">
-                  <Phone className="h-4 w-4" />
-                  Call Now
-                </button>
+              <div className="grid grid-cols-1 gap-3">
                 <button className="flex items-center justify-center gap-2 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors duration-200">
                   <Heart className="h-4 w-4" />
                   Save
@@ -338,8 +333,8 @@ function ProductDetail() {
                   <div className="flex items-center justify-between">
                     <p className="font-medium">{r.name || 'Buyer'}</p>
                     <div className="flex items-center gap-1">
-                      {[1,2,3,4,5].map(n => (
-                        <Star key={n} className={`h-4 w-4 ${n <= (r.rating||0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <Star key={n} className={`h-4 w-4 ${n <= (r.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
                       ))}
                     </div>
                   </div>
@@ -357,7 +352,7 @@ function ProductDetail() {
               <div>
                 <label className="block mb-1 text-sm font-medium">Your Rating</label>
                 <div className="flex items-center gap-2">
-                  {[1,2,3,4,5].map(n => (
+                  {[1, 2, 3, 4, 5].map(n => (
                     <button
                       type="button"
                       key={n}

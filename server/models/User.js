@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'pending', 'suspended'],
+    enum: ['active', 'pending', 'suspended', 'approved'],
     default: 'active'
   },
   // Add rejection details
@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema({
   },
 
 
- planStatus: { // NEW: track if plan is active/pending/expired
+  planStatus: { // NEW: track if plan is active/pending/expired
     type: String,
     enum: ['active', 'pending', 'expired'],
     default: 'pending'
@@ -75,6 +75,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Optional buyer proof
+  proofType: {
+    type: String,
+    trim: true
+  },
+  proofImage: {
+    type: String // Base64 or URL
+  },
   // Password reset fields
   resetPasswordToken: {
     type: String
@@ -87,9 +95,9 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -100,7 +108,7 @@ userSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 

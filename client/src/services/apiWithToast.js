@@ -43,11 +43,11 @@ api.interceptors.response.use(
   (error) => {
     // Handle different error types
     let errorMessage = 'An unexpected error occurred';
-    
+
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
-      
+
       switch (status) {
         case 400:
           errorMessage = data.msg || data.message || 'Bad request';
@@ -72,12 +72,12 @@ api.interceptors.response.use(
       // Network error
       errorMessage = 'Network error. Please check your connection.';
     }
-    
+
     // Show error toast if context is available
     if (toastContext) {
       toastContext.showError(errorMessage);
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -88,13 +88,13 @@ const makeApiCall = async (apiCall, loadingKey, successMessage = null) => {
     if (loadingContext && loadingKey) {
       loadingContext.setLoading(loadingKey, true);
     }
-    
+
     const response = await apiCall();
-    
+
     if (successMessage && toastContext) {
       toastContext.showSuccess(successMessage);
     }
-    
+
     return response;
   } catch (error) {
     throw error;
@@ -107,19 +107,19 @@ const makeApiCall = async (apiCall, loadingKey, successMessage = null) => {
 
 // Auth API functions
 export const authAPI = {
-  register: (userData) => 
+  register: (userData) =>
     makeApiCall(
       () => api.post('/auth/register', userData),
       'register',
       'Registration successful!'
     ),
-  login: (credentials) => 
+  login: (credentials) =>
     makeApiCall(
       () => api.post('/auth/login', credentials),
       'login',
       'Logged in successfully!'
     ),
-  getCurrentUser: () => 
+  getCurrentUser: () =>
     makeApiCall(
       () => api.get('/auth/me'),
       'get-current-user'
@@ -141,33 +141,39 @@ export const authAPI = {
       () => api.post('/auth/otp/verify', { otpId, code }),
       'auth-otp-verify'
     ),
+  updateProfile: (userData) =>
+    makeApiCall(
+      () => api.put('/auth/profile', userData),
+      'auth-profile-update',
+      'Profile updated successfully!'
+    ),
 };
 
 // Product API functions
 export const productAPI = {
-  getAll: (params) => 
+  getAll: (params) =>
     makeApiCall(
       () => api.get('/products', { params }),
       'products-fetch'
     ),
-  getById: (id) => 
+  getById: (id) =>
     makeApiCall(
       () => api.get(`/products/${id}`),
       `product-${id}`
     ),
-  create: (productData) => 
+  create: (productData) =>
     makeApiCall(
       () => api.post('/products', productData),
       'product-create',
       'Product created successfully!'
     ),
-  update: (id, productData) => 
+  update: (id, productData) =>
     makeApiCall(
       () => api.put(`/products/${id}`, productData),
       `product-update-${id}`,
       'Product updated successfully!'
     ),
-  delete: (id) => 
+  delete: (id) =>
     makeApiCall(
       () => api.delete(`/products/${id}`),
       `product-delete-${id}`,
@@ -182,18 +188,18 @@ export const productAPI = {
 
 // Lead API functions
 export const leadAPI = {
-  create: (leadData) => 
+  create: (leadData) =>
     makeApiCall(
       () => api.post('/leads', leadData),
       'lead-create',
       'Inquiry sent successfully!'
     ),
-  getForSeller: () => 
+  getForSeller: () =>
     makeApiCall(
       () => api.get('/leads'),
       'leads-fetch'
     ),
-  updateStatus: (leadId, status) => 
+  updateStatus: (leadId, status) =>
     makeApiCall(
       () => api.patch(`/leads/${leadId}/status`, { status }),
       `lead-update-${leadId}`,
@@ -203,12 +209,12 @@ export const leadAPI = {
 
 // Seller API functions
 export const sellerAPI = {
-  getProfile: (userId) => 
+  getProfile: (userId) =>
     makeApiCall(
       () => api.get(`/seller/${userId}`),
       `seller-profile-${userId}`
     ),
-  updateProfile: (profileData) => 
+  updateProfile: (profileData) =>
     makeApiCall(
       () => api.post('/seller/profile', profileData),
       'seller-profile-update',
@@ -224,12 +230,12 @@ export const sellerAPI = {
 
 // Membership API functions
 export const membershipAPI = {
-  getPlans: () => 
+  getPlans: () =>
     makeApiCall(
       () => api.get('/membership/plans'),
       'membership-plans'
     ),
-  subscribe: (planId, data = {}) => 
+  subscribe: (planId, data = {}) =>
     makeApiCall(
       () => api.post(`/membership/subscribe/${planId}`, data),
       `membership-subscribe-${planId}`,

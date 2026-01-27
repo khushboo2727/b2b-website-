@@ -22,7 +22,8 @@ import Analytics from './pages/admin/Analytics';
 import SupportTickets from './pages/admin/SupportTickets';
 import Support from './pages/Support';
 import TrackTicket from './pages/TrackTicket';
-import Settings from './pages/seller/Settings';
+import SellerSettings from './pages/seller/Settings';
+import AdminSettings from './pages/admin/Settings';
 import AdminMessages from './components/admin/AdminMessages';
 import AdminLayout from './components/layout/AdminLayout';
 
@@ -50,86 +51,86 @@ import PostRequirement from './pages/PostRequirement';
 
 function App() {
   return (
-          <Router>
-            <div className="App">
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
-                <Route path="/support" element={<Support />} />
-                <Route path="/track-ticket" element={<TrackTicket />} />
-                {/* <Route path="/membership" element={<Membership />} /> */}
-                <Route path="/membership-plans" element={<MembershipPlans />} />
-                <Route path="/post-requirement" element={<PostRequirement />} />
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/track-ticket" element={<TrackTicket />} />
+          {/* <Route path="/membership" element={<Membership />} /> */}
+          <Route path="/membership-plans" element={<MembershipPlans />} />
+          <Route path="/post-requirement" element={<PostRequirement />} />
 
-                {/* NEW: Categories landing page */}
-                <Route path="/categories" element={<Categories />} />
+          {/* NEW: Categories landing page */}
+          <Route path="/categories" element={<Categories />} />
 
-                {/* Make pending approval public so non-logged-in sellers can see it */}
-                <Route 
-                  path="/seller/pending-approval" 
-                  element={<PendingApproval />} 
-                />
+          {/* Make pending approval public so non-logged-in sellers can see it */}
+          <Route
+            path="/seller/pending-approval"
+            element={<PendingApproval />}
+          />
 
-                {/* Buyer protected routes */}
-                <Route 
-                  path="/buyer/dashboard" 
-                  element={
-                    <ProtectedRoute allowedRoles={['buyer']}>
-                      <BuyerDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/buyer/rfqs" 
-                  element={
-                    <ProtectedRoute allowedRoles={['buyer']}>
-                      <BuyerRFQs />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/buyer/profile" 
-                  element={
-                    <ProtectedRoute allowedRoles={['buyer']}>
-                      <BuyerProfile />
-                    </ProtectedRoute>
-                  } 
-                />
+          {/* Buyer protected routes */}
+          <Route
+            path="/buyer/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['buyer']}>
+                <BuyerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/buyer/rfqs"
+            element={
+              <ProtectedRoute allowedRoles={['buyer']}>
+                <BuyerRFQs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/buyer/profile"
+            element={
+              <ProtectedRoute allowedRoles={['buyer']}>
+                <BuyerProfile />
+              </ProtectedRoute>
+            }
+          />
 
-                {/* Seller protected routes */}
-                <Route 
-                  path="/seller/dashboard" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <SellerDashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/seller/profile" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <SellerProfile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/seller/leads" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <SellerLeads />
-                    </ProtectedRoute>
-                  } 
-                />
-                {/* Messages page removed; floating widget now handles chat */}
-                {/* <Route 
+          {/* Seller protected routes */}
+          <Route
+            path="/seller/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/profile"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/leads"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerLeads />
+              </ProtectedRoute>
+            }
+          />
+          {/* Messages page removed; floating widget now handles chat */}
+          {/* <Route 
                   path="/seller/rfqs" 
                   element={
                     <ProtectedRoute allowedRoles={['seller']}>
@@ -137,130 +138,130 @@ function App() {
                     </ProtectedRoute>
                   } 
                 /> */}
-                <Route 
-                  path="/seller/all-leads" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <AllLeads />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/seller/products" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <SellerProducts />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/seller/pending-approval" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <PendingApproval />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/seller/products/add" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <AddProduct />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route
-                  path="/seller/products/edit/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <EditProduct />
-                    </ProtectedRoute>
-                  } 
-                />
-                   <Route 
-                  path="/seller/settings" 
-                  element={
-                    <ProtectedRoute allowedRoles={['seller']}>
-                      <Settings />
-                    </ProtectedRoute>
-                  } 
-                />
-                {/* Public seller registration */}
-                <Route path="/seller/register" element={<SellerRegister />} />
-                
-                {/* Admin Routes */}
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route 
-                  path="/admin/dashboard"
-                  element={
-                    <AdminDashboard />
-                  }
-                />
-                <Route 
-                  path="/admin/messages" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminLayout>
-                        <AdminMessages />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/buyers" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Buyers />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/sellers" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Sellers />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/sellers/:id"
-                  element={<SellerDetail />}
-                />
-                <Route 
-                  path="/admin/inquiries" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Inquiries />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/analytics" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Analytics />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/support-tickets" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <SupportTickets />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin/settings" 
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Settings />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Routes>
-            </div>
-          </Router>
+          <Route
+            path="/seller/all-leads"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <AllLeads />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/products"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/pending-approval"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <PendingApproval />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/products/add"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <AddProduct />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/products/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <EditProduct />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/settings"
+            element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerSettings />
+              </ProtectedRoute>
+            }
+          />
+          {/* Public seller registration */}
+          <Route path="/seller/register" element={<SellerRegister />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminDashboard />
+            }
+          />
+          <Route
+            path="/admin/messages"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout>
+                  <AdminMessages />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/buyers"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Buyers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sellers"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Sellers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sellers/:id"
+            element={<SellerDetail />}
+          />
+          <Route
+            path="/admin/inquiries"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Inquiries />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Analytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/support-tickets"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <SupportTickets />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

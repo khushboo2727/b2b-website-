@@ -98,6 +98,15 @@ const leadSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Buyer Questionnaire
+  importProduct: String,
+  annualVolume: String,
+  targetPriceRange: String,
+  lastImportCountry: String,
+  frequency: {
+    type: String,
+    enum: ['Monthly', 'Quarterly', 'Yearly', 'One-time']
+  },
   category: {
     type: String,
     required: true

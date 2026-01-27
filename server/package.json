@@ -21,6 +21,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
     "socket.io": "^4.8.1",
+    "whois-json": "^2.0.4",
     "zod": "^4.1.11"
   },
   "devDependencies": {
