@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
 
+import { useAuth } from '../../context/AuthContext';
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null); // This will be managed by context later
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Clear user data and redirect
-    setUser(null);
-    localStorage.removeItem('token');
+    logout();
     navigate('/');
   };
 
@@ -35,7 +35,7 @@ const Navbar = () => {
             <Link to="/support" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
               Support
             </Link>
-            
+
             {user ? (
               <div className="flex items-center space-x-4">
                 {user.role === 'seller' && (
@@ -102,7 +102,7 @@ const Navbar = () => {
             >
               Products
             </Link>
-            
+
             {user ? (
               <>
                 {user.role === 'seller' && (
