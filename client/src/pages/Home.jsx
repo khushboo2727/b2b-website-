@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Filter, MapPin, Star, Eye, ChevronDown, ChevronRight, Shield, Truck, CreditCard, Headphones, BadgeCheck } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Eye, ChevronDown, ChevronRight, Shield, Truck, CreditCard, Headphones, BadgeCheck, Menu, X } from 'lucide-react';
 import { productAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -20,6 +20,7 @@ const Home = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null); // NEW: Track expanded category
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Real auth context
   const { user, logout } = useAuth();
@@ -317,7 +318,7 @@ const Home = () => {
 
   const HeroCarousel = () => (
     <div className="relative bg-white border rounded-lg overflow-hidden">
-      <img src={promoSlides[slide].image} alt={promoSlides[slide].title} className="w-full h-[360px] object-cover" />
+      <img src={promoSlides[slide].image} alt={promoSlides[slide].title} className="w-full h-48 md:h-[360px] object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
       {/* Removed centered search overlay */}
@@ -410,7 +411,7 @@ const Home = () => {
                   onClick={() => handleCategoryClick(tile)}
                   className="group w-full"
                 >
-                  <div className="border rounded-lg p-3 bg-white hover:shadow-sm transition text-center cursor-pointer">
+                  <div className="border rounded-lg p-2  bg-white hover:shadow-sm transition text-center cursor-pointer">
                     <img src={tile.image || '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg'} alt={tile.name} className="w-24 h-16 mx-auto mb-2 object-cover rounded" />
                     <div className="text-xs font-medium text-gray-700 group-hover:text-blue-600 truncate">{tile.name}</div>
                   </div>
@@ -516,83 +517,158 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#fefcfa]">
       {/* ✅ Navbar */}
-      <header className="bg-[#2f3284] shadow-md">
-        <div className="max-w-7xl mx-auto px-2 py-3 grid grid-cols-12 gap-4 items-center">
-          <Link to="/" className="col-span-2 text-2xl font-bold text-white">NBS World</Link>
-          {/* Header Center Search */}
-          <form onSubmit={handleHeroSearch} className="col-span-6 hidden md:flex w-full">
-            <div className="relative flex-1">
+      {/* ✅ Navbar */}
+      <header className="bg-[#2f3284] shadow-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Logo */}
+            <Link to="/" className="text-2xl font-bold text-white shrink-0">NBS World</Link>
+
+            {/* Desktop Search */}
+            <form onSubmit={handleHeroSearch} className="hidden md:flex flex-1 max-w-2xl mx-4 relative">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onFocus={() => setShowSuggestions(suggestions.length > 0)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-l-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                />
+                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                    <div className="max-h-64 overflow-auto">
+                      {loadingSuggestions && (
+                        <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                      )}
+                      {!loadingSuggestions && suggestions.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500">No suggestions</div>
+                      )}
+                      {!loadingSuggestions && suggestions.map((s, idx) => (
+                        <button
+                          key={`${s}-${idx}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSuggestionClick(s)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <Search className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-700 line-clamp-1">{s}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#ff6600] text-white rounded-r-md hover:bg-blue-700 transition-colors"
+              >
+                Search
+              </button>
+            </form>
+
+            {/* Desktop Nav */}
+            <nav className="hidden md:flex items-center gap-6">
+              <Link to="/post-requirement" className="text-white hover:text-[#ff6600] font-medium transition-colors">Post Requirement</Link>
+              {user && user.role !== 'buyer' && (
+                <Link to="/membership-plans" className="text-[#ff6600] hover:text-white font-medium transition-colors">Membership</Link>
+              )}
+              {user ? (
+                <div className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-[#ff6600] text-white flex items-center justify-center cursor-pointer border-2 border-white/20 hover:border-white transition-colors">
+                    {user.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="absolute right-0 mt-0 w-48 bg-white shadow-xl rounded-lg border overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all transform origin-top-right scale-95 group-hover:scale-100 z-50">
+                    <div className="px-4 py-3 bg-gray-50 border-b">
+                      <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Dashboard
+                    </Link>
+                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Logout</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Link to="/login" className="text-white hover:text-[#ff6600] font-medium transition-colors">Sign In</Link>
+                  <Link to="/register" className="bg-[#ff6600] hover:bg-[#ff8533] text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">Sign Up</Link>
+                </div>
+              )}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+
+          {/* Mobile Search - Visible only on mobile */}
+          <div className="md:hidden mt-3 pb-2">
+            <form onSubmit={handleHeroSearch} className="flex w-full">
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="Search..."
                 value={searchTerm}
-                onFocus={() => setShowSuggestions(suggestions.length > 0)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-l-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                className="w-full pl-4 pr-4 py-2 rounded-l-md border-0 focus:ring-2 focus:ring-[#ff6600]"
               />
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#ff6600] text-white rounded-r-md"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+            </form>
+          </div>
 
-              {/* Suggestions Dropdown */}
-              {showSuggestions && (
-                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20">
-                  <div className="max-h-64 overflow-auto">
-                    {loadingSuggestions && (
-                      <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
-                    )}
-                    {!loadingSuggestions && suggestions.length === 0 && (
-                      <div className="px-3 py-2 text-sm text-gray-500">No suggestions</div>
-                    )}
-                    {!loadingSuggestions && suggestions.map((s, idx) => (
-                      <button
-                        key={`${s}-${idx}`}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSuggestionClick(s)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center gap-2"
-                      >
-                        <Search className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-700 line-clamp-1">{s}</span>
-                      </button>
-                    ))}
+          {/* Mobile Menu Dropdown */}
+          {isMenuOpen && (
+            <div className="md:hidden border-t border-white/10 pt-4 pb-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+              <Link to="/post-requirement" className="block px-3 py-2 text-white hover:bg-white/10 rounded-md transition-colors">Post Requirement</Link>
+              {user && user.role !== 'buyer' && (
+                <Link to="/membership-plans" className="block px-3 py-2 text-[#ff6600] hover:bg-white/10 rounded-md font-medium transition-colors">Membership</Link>
+              )}
+              {user ? (
+                <>
+                  <div className="px-3 py-2 border-t border-white/10 mt-2">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-[#ff6600] text-white flex items-center justify-center text-sm">
+                        {user.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">{user.name}</p>
+                        <p className="text-white/70 text-xs">{user.email}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'}
+                      className="block py-2 text-white hover:text-[#ff6600] transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <button onClick={handleLogout} className="w-full text-left py-2 text-red-300 hover:text-red-400 transition-colors">Logout</button>
                   </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 mt-4 px-1">
+                  <Link to="/login" className="text-center py-2 text-white border border-white/20 rounded-lg hover:bg-white/10 transition-colors">Sign In</Link>
+                  <Link to="/register" className="text-center py-2 bg-[#ff6600] text-white rounded-lg hover:bg-[#ff8533] transition-colors">Sign Up</Link>
                 </div>
               )}
             </div>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#ff6600] text-white rounded-r-md hover:bg-blue-700 transition-colors"
-            >
-              Search
-            </button>
-          </form>
-          <nav className="col-span-4 flex items-center justify-end gap-6">
-            <Link to="/post-requirement" className="text-white hover:text-[#ff6600] font-medium">Post Requirement</Link>
-            {user && (
-              <Link to="/membership-plans" className="text-[#ff6600] hover:text-white font-medium">Membership</Link>
-            )}
-            {user ? (
-              <div className="relative group">
-                <div className="w-10 h-10 rounded-full bg-[#ff6600] text-white flex items-center justify-center cursor-pointer">
-                  {user.name?.charAt(0).toUpperCase()}
-                </div>
-                <div className="absolute right-0 mt-0 w-40 bg-white shadow-lg rounded-lg border opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition">
-                  <Link
-                    to={user.role === 'seller' ? '/seller/dashboard' : '/buyer/dashboard'}
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Dashboard
-                  </Link>
-                  <button onClick={() => { handleLogout(); }} className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <Link to="/login" className="text-white hover:text-[#ff6600] font-medium">Sign In</Link>
-                <Link to="/register" className="bg-[#ff6600] hover:bg-[#ff8533] text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign Up</Link>
-              </div>
-            )}
-          </nav>
+          )}
         </div>
       </header>
 
@@ -681,7 +757,7 @@ const Home = () => {
           {loading ? (
             <div className="py-12 text-center text-gray-500">Loading products...</div>
           ) : products.length ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
               {products.slice(0, 8).map((p) => (
                 <div key={p._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
                   <div className="relative">
@@ -702,7 +778,7 @@ const Home = () => {
               ))}
             </div>
           ) : (
-            <div className="bg-white border rounded-lg p-10 text-center text-gray-600">Koi product nahi mila. Filters/Keywords change karke try karein.</div>
+            <div className="bg-white border rounded-lg p-10 text-center text-gray-600">No products found. Try different filters or keywords.</div>
           )}
         </div>
       </section>

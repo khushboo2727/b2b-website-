@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { adminAPI } from '../../services/apiWithToast';
 import { toast } from 'react-hot-toast';
@@ -89,7 +90,7 @@ const Sellers = () => {
     <AdminLayout>
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Manage Sellers</h1>
-        
+
         {/* Search and Filter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <form onSubmit={handleSearch} className="flex-1">
@@ -109,7 +110,7 @@ const Sellers = () => {
               </button>
             </div>
           </form>
-          
+
           <div className="w-full md:w-48">
             <select
               value={statusFilter}
@@ -146,7 +147,7 @@ const Sellers = () => {
             />
           </div>
         </div>
-        
+
         {/* Sellers Table */}
         {loading ? (
           <div className="flex justify-center py-8">
@@ -207,24 +208,22 @@ const Sellers = () => {
                         {seller.productsCount ?? '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          seller.membershipPlan?.name || seller.membershipPlan?.type
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${seller.membershipPlan?.name || seller.membershipPlan?.type
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-gray-100 text-gray-800'
+                          }`}>
                           {seller.membershipPlan?.name || seller.membershipPlan?.type || 'Free'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          seller.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : seller.status === 'pending'
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${seller.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : seller.status === 'pending'
                             ? 'bg-yellow-100 text-yellow-800'
                             : seller.status === 'rejected' || seller.status === 'suspended'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
                           {seller.status?.charAt(0).toUpperCase() + seller.status?.slice(1)}
                         </span>
                       </td>
@@ -234,7 +233,7 @@ const Sellers = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-3">View</button>
+                        <Link to={`/admin/sellers/${seller._id}`} className="text-indigo-600 hover:text-indigo-900 mr-3">View</Link>
                         {seller.status === 'pending' && (
                           <>
                             <button
@@ -272,7 +271,7 @@ const Sellers = () => {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination */}
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">

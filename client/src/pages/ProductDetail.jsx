@@ -238,11 +238,11 @@ function ProductDetail() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Specifications</h3>
                 <div className="bg-gray-50 rounded-lg p-4">
                   {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between py-1">
-                      <span className="text-gray-600 capitalize">
+                    <div key={key} className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-gray-600 capitalize text-sm">
                         {key.replace(/([A-Z])/g, ' $1')}:
                       </span>
-                      <span className="font-medium">{String(value)}</span>
+                      <span className="font-medium text-gray-900">{String(value)}</span>
                     </div>
                   ))}
                 </div>

@@ -11,33 +11,53 @@ const Buyers = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
-  
+  const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const fetchBuyers = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAPI.getBuyers({
+        page: currentPage,
+        limit: 10,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm || undefined
+      });
+      setBuyers(response.data.buyers);
+      setTotalPages(response.data.totalPages);
+    } catch (error) {
+      toast.error('Failed to load buyers');
+      console.error('Error fetching buyers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchBuyers = async () => {
-      try {
-        setLoading(true);
-        const response = await adminAPI.getBuyers({
-          page: currentPage,
-          limit: 10,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
-          search: searchTerm || undefined
-        });
-        setBuyers(response.data.buyers);
-        setTotalPages(response.data.totalPages);
-      } catch (error) {
-        toast.error('Failed to load buyers');
-        console.error('Error fetching buyers:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchBuyers();
   }, [currentPage, statusFilter, searchTerm]);
 
+  const handleBuyerAction = async (buyerId, action) => {
+    try {
+      if (action === 'block') {
+        if (!confirm('Are you sure you want to block this buyer?')) return;
+        await adminAPI.blockUser(buyerId);
+        toast.success('Buyer blocked');
+      } else if (action === 'unblock') {
+        await adminAPI.unblockUser(buyerId);
+        toast.success('Buyer unblocked');
+      }
+      fetchBuyers();
+    } catch (error) {
+      console.error(error);
+      toast.error('Action failed');
+    }
+  };
+
+
+
   const handleSearch = (e) => {
     e.preventDefault();
-    // Search is already triggered by the useEffect dependency
   };
 
   const handleStatusChange = (e) => {
@@ -63,7 +83,7 @@ const Buyers = () => {
     <AdminLayout>
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Manage Buyers</h1>
-        
+
         {/* Search and Filter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <form onSubmit={handleSearch} className="flex-1">
@@ -83,7 +103,7 @@ const Buyers = () => {
               </button>
             </div>
           </form>
-          
+
           <div className="w-full md:w-48">
             <select
               value={statusFilter}
@@ -96,7 +116,7 @@ const Buyers = () => {
             </select>
           </div>
         </div>
-        
+
         {/* Buyers Table */}
         {loading ? (
           <div className="flex justify-center py-8">
@@ -153,8 +173,16 @@ const Buyers = () => {
                         <div className="text-sm text-gray-500">{formatDate(buyer.updatedAt || buyer.createdAt)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-3">View</button>
-                        <button className={`${buyer.status === 'active' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}>
+                        <button
+                          onClick={() => { setSelectedBuyer(buyer); setShowModal(true); }}
+                          className="text-indigo-600 hover:text-indigo-900 mr-3"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleBuyerAction(buyer._id, buyer.status === 'active' ? 'block' : 'unblock')}
+                          className={`${buyer.status === 'active' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                        >
                           {buyer.status === 'active' ? 'Block' : 'Unblock'}
                         </button>
                       </td>
@@ -163,7 +191,7 @@ const Buyers = () => {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination */}
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
@@ -202,6 +230,80 @@ const Buyers = () => {
           </div>
         )}
       </div>
+      {/* Buyer Detail Modal */}
+      {showModal && selectedBuyer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-2xl font-bold mb-6">Buyer Details</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
+                <p className="mt-1 text-lg font-medium text-gray-900">{selectedBuyer.name}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email Address</h3>
+                <p className="mt-1 text-lg text-gray-900">{selectedBuyer.email}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Phone Number</h3>
+                <p className="mt-1 text-lg text-gray-900">{selectedBuyer.phone || 'N/A'}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                <span className={`mt-1 inline-flex px-2 text-xs leading-5 font-semibold rounded-full ${selectedBuyer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {selectedBuyer.status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+
+              <div className="md:col-sp an-2">
+                <h3 className="text-sm font-medium text-gray-500">Company Name</h3>
+                <p className="mt-1 text-lg text-gray-900">{selectedBuyer.companyName || 'N/A'}</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-500">Address</h3>
+                <p className="mt-1 text-gray-900">{selectedBuyer.address || 'N/A'}</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-500">Registration Date</h3>
+                <p className="mt-1 text-gray-900">{formatDate(selectedBuyer.createdAt)}</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3 pt-4 border-t">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  handleBuyerAction(selectedBuyer._id, selectedBuyer.status === 'active' ? 'block' : 'unblock');
+                  setShowModal(false);
+                }}
+                className={`px-4 py-2 text-white rounded-md ${selectedBuyer.status === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+              >
+                {selectedBuyer.status === 'active' ? 'Block User' : 'Unblock User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

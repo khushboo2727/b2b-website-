@@ -43,7 +43,7 @@ const Products = () => {
 
       const response = await productAPI.getAll(params);
       const data = response.data;
-      
+
       setProducts(data.products || []);
       setTotalPages(data.totalPages || 1);
       setTotalProducts(data.total || 0);
@@ -113,27 +113,27 @@ const Products = () => {
           <Star className="h-4 w-4 text-yellow-400 fill-current" />
         </div>
       </div>
-      
+
       <div className="p-4">
         <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2">
           {product.title}
         </h3>
-        
+
         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
           {product.description}
         </p>
-        
+
         <div className="mb-3">
           <span className="text-sm text-gray-500">
             Category: {product.category}
           </span>
         </div>
-        
+
         <div className="flex items-center text-sm text-gray-500 mb-3">
           <MapPin className="h-4 w-4 mr-1" />
           <span>{product.seller?.name || 'Seller'}</span>
         </div>
-        
+
         <div className="flex gap-2">
           <Link
             to={`/product/${product._id}`}
@@ -158,7 +158,7 @@ const Products = () => {
                 Discover {totalProducts} products from verified suppliers
               </p>
             </div>
-            
+
             {/* Search Bar */}
             <div className="mt-4 md:mt-0 md:ml-6">
               <form onSubmit={handleSearch} className="flex">
@@ -198,7 +198,7 @@ const Products = () => {
                   <Filter className="h-5 w-5" />
                 </button>
               </div>
-              
+
               <div className={`space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
                 {/* Categories */}
                 <div>
@@ -228,7 +228,7 @@ const Products = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Clear Filters */}
                 {(searchTerm || selectedCategory) && (
                   <button
@@ -295,7 +295,7 @@ const Products = () => {
             ) : (
               /* Products Grid */
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                   {products.map((product) => (
                     <ProductCard key={product._id} product={product} />
                   ))}
@@ -312,7 +312,7 @@ const Products = () => {
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                      
+
                       {[...Array(totalPages)].map((_, i) => {
                         const page = i + 1;
                         if (
@@ -324,11 +324,10 @@ const Products = () => {
                             <button
                               key={page}
                               onClick={() => handlePageChange(page)}
-                              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                                currentPage === page
+                              className={`px-3 py-2 rounded-md text-sm font-medium ${currentPage === page
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {page}
                             </button>
@@ -345,7 +344,7 @@ const Products = () => {
                         }
                         return null;
                       })}
-                      
+
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
