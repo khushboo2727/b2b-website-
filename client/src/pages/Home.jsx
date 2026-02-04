@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, MapPin, Star, Eye, ChevronDown, ChevronRight, Shield, Truck, CreditCard, Headphones, BadgeCheck, Menu, X } from 'lucide-react';
 import { productAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
-
+import RelatedProducts from '../components/RelatedProducts';
 import { useAuth } from '../context/AuthContext';
 // 
 
@@ -80,6 +80,9 @@ const Home = () => {
   const handleHeroSearch = (e) => {
     e.preventDefault();
     const term = (searchTerm || '').trim();
+    if (term) {
+      localStorage.setItem('lastSearch', term);
+    }
     navigate(term ? `/products?search=${encodeURIComponent(term)}` : '/products');
   };
 
@@ -413,7 +416,7 @@ const Home = () => {
                 >
                   <div className="border rounded-lg p-2  bg-white hover:shadow-sm transition text-center cursor-pointer">
                     <img src={tile.image || '/images/categories/manufacture-steel-machine-with-control-computer-clear-room.jpg'} alt={tile.name} className="w-24 h-16 mx-auto mb-2 object-cover rounded" />
-                    <div className="text-xs font-medium text-gray-700 group-hover:text-blue-600 truncate">{tile.name}</div>
+                    <div className="text-xs font-medium text-gray-7 00 group-hover:text-blue-600 truncate">{tile.name}</div>
                   </div>
                 </button>
               );
@@ -691,6 +694,7 @@ const Home = () => {
 
       {/* Explore Categories grid */}
       <CategoryTiles />
+      <RelatedProducts />
 
       {/* Categories Cards snapshot (same design as /categories) */}
       <section className="max-w-9xl mx-auto px-4 mt-6">

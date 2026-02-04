@@ -386,6 +386,9 @@ function ProductDetail() {
             </form>
           )}
         </div>
+
+        {/* Related Products Section */}
+        <RelatedProducts currentId={id} />
       </div>
 
       {/* Inquiry Form Modal */}
@@ -404,5 +407,66 @@ function ProductDetail() {
     </div>
   );
 }
+
+// Related Products Component
+const RelatedProducts = ({ currentId }) => {
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadRelated = async () => {
+      try {
+        setLoading(true);
+        const res = await productAPI.getRelated(currentId);
+        setRelated(res.data || []);
+      } catch (err) {
+        console.error('Failed to load related products', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (currentId) loadRelated();
+  }, [currentId]);
+
+  if (loading) return null; // or skeleton
+  if (!related.length) return null;
+
+  return (
+    <div className="mt-12">
+      <h3 className="text-2xl font-bold text-gray-900 mb-6">Related Products</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {related.map((p) => (
+          <div key={p._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 group">
+            <div className="relative">
+              <img
+                src={p.images?.[0] || 'https://placehold.co/300x200'}
+                alt={p.title}
+                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              {p.averageRating > 0 && (
+                <div className="absolute top-2 right-2 bg-white/90 rounded-full px-2 py-1 flex items-center gap-1 text-xs font-semibold shadow-sm">
+                  <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                  {p.averageRating?.toFixed(1)}
+                </div>
+              )}
+            </div>
+            <div className="p-4">
+              <h4 className="font-semibold text-gray-900 mb-1 line-clamp-1">{p.title}</h4>
+              <p className="text-sm text-gray-500 mb-3">{p.category}</p>
+
+              <Link
+                to={`/product/${p._id}`}
+                className="block w-full bg-gray-50 text-blue-600 text-center py-2 rounded hover:bg-blue-50 hover:text-blue-700 transition-colors text-sm font-medium border border-gray-200"
+                onClick={() => window.scrollTo(0, 0)}
+              >
+                View Details
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default ProductDetail;

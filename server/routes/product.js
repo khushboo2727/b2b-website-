@@ -39,24 +39,24 @@ router.post('/',
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    const { 
-      search, 
-      category, 
-      location, 
-      minPrice, 
-      maxPrice, 
+    const {
+      search,
+      category,
+      location,
+      minPrice,
+      maxPrice,
       verified,
-      page = 1, 
+      page = 1,
       limit = 12,
       sortBy = 'createdAt',
       sortOrder = 'desc',
       sellerId,
       isActive
     } = req.query;
-    
+
     // Build aggregation pipeline for complex search with seller info
     let pipeline = [];
-    
+
     // Match active products
     let matchStage = { isActive: true };
 
@@ -69,17 +69,17 @@ router.get('/', async (req, res) => {
     if (typeof isActive !== 'undefined') {
       matchStage.isActive = isActive === 'true';
     }
-    
+
     // Text search functionality
     if (search) {
       matchStage.$text = { $search: search };
     }
-    
+
     // Category filter
     if (category && category !== 'all') {
       matchStage.category = new RegExp(category, 'i');
     }
-    
+
     // Price range filter
     if (minPrice || maxPrice) {
       if (minPrice) {
@@ -89,9 +89,9 @@ router.get('/', async (req, res) => {
         matchStage['priceRange.max'] = { $lte: Number(maxPrice) };
       }
     }
-    
+
     pipeline.push({ $match: matchStage });
-    
+
     // Lookup seller information
     pipeline.push({
       $lookup: {
@@ -101,7 +101,7 @@ router.get('/', async (req, res) => {
         as: 'seller'
       }
     });
-    
+
     // Lookup seller profile for location and verification
     pipeline.push({
       $lookup: {
@@ -111,14 +111,14 @@ router.get('/', async (req, res) => {
         as: 'sellerProfile'
       }
     });
-    
+
     // Unwind arrays
     pipeline.push({ $unwind: '$seller' });
-    pipeline.push({ 
-      $unwind: { 
-        path: '$sellerProfile', 
-        preserveNullAndEmptyArrays: true 
-      } 
+    pipeline.push({
+      $unwind: {
+        path: '$sellerProfile',
+        preserveNullAndEmptyArrays: true
+      }
     });
 
     // Lookup membership plan for seller
@@ -133,10 +133,10 @@ router.get('/', async (req, res) => {
     pipeline.push({
       $unwind: { path: '$membershipPlan', preserveNullAndEmptyArrays: true }
     });
-    
+
     // Additional filters based on seller info
     let additionalMatch = {};
-    
+
     // Location filter
     if (location) {
       additionalMatch.$or = [
@@ -145,16 +145,16 @@ router.get('/', async (req, res) => {
         { 'sellerProfile.address.pincode': new RegExp(location, 'i') }
       ];
     }
-    
+
     // Verified seller filter
     if (verified === 'true') {
       additionalMatch['seller.verified'] = true;
     }
-    
+
     if (Object.keys(additionalMatch).length > 0) {
       pipeline.push({ $match: additionalMatch });
     }
-    
+
     // Add computed fields
     pipeline.push({
       $addFields: {
@@ -173,7 +173,7 @@ router.get('/', async (req, res) => {
         membershipName: '$membershipPlan.name'
       }
     });
-    
+
     // Sort
     let sortStage = {};
     if (search) {
@@ -188,14 +188,14 @@ router.get('/', async (req, res) => {
       sortStage[sortBy] = sortOrder === 'desc' ? -1 : 1;
     }
     pipeline.push({ $sort: sortStage });
-    
+
     // Get total count
     const countPipeline = [...pipeline, { $count: 'total' }];
-    
+
     // Add pagination
     pipeline.push({ $skip: (page - 1) * limit });
     pipeline.push({ $limit: parseInt(limit) });
-    
+
     // Project final fields
     pipeline.push({
       $project: {
@@ -217,15 +217,185 @@ router.get('/', async (req, res) => {
         isActive: 1 // FIX: status ke liye field include
       }
     });
-    
+
     // Execute aggregation
-    const [products, countResult] = await Promise.all([
+    let [products, countResult] = await Promise.all([
       Product.aggregate(pipeline),
       Product.aggregate(countPipeline)
     ]);
-    
+
+    // --- FUZZY SEARCH FALLBACK ---
+    if (products.length === 0 && search && parseInt(page) === 1) {
+      console.log(`No exact match for "${search}". Attempting fuzzy/regex search...`);
+
+      // Fallback 1: Regex Partial Match
+      // Remove text search stage and add regex match
+      const basePipeline = pipeline.filter(stage => !stage.$match || !stage.$match.$text);
+
+      // Re-add other filters from original matchStage if any
+      const originalMatch = pipeline.find(stage => stage.$match && !stage.$match.$text)?.$match || {};
+      delete originalMatch.$text;
+
+      const regexMatch = {
+        ...originalMatch,
+        isActive: true,
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { category: { $regex: search, $options: 'i' } }, // Check category name too
+          { description: { $regex: search, $options: 'i' } }
+        ]
+      };
+
+      const regexPipeline = [
+        { $match: regexMatch },
+        ...basePipeline.filter(s => !s.$match) // Add remaining stages (lookup, sort, etc)
+      ];
+
+      // We need to re-add lookups if they were part of the pipeline after the first match
+      // Actually, simplest way is to rebuild pipeline logic or just basic fetch for fallback
+
+      // Let's use a simpler approach for fallback to reuse existing code structure isn't easy without refactoring
+      // dependent stages. 
+      // Instead, let's query Product directly with Mongoose for the fuzzy part to get IDs, then run pipeline?
+      // Or just run a new cleaner aggregation.
+
+      const fuzzyPipeline = [
+        { $match: regexMatch },
+        // Add lookups same as original
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'sellerId',
+            foreignField: '_id',
+            as: 'seller'
+          }
+        },
+        {
+          $lookup: {
+            from: 'sellerprofiles',
+            localField: 'sellerId',
+            foreignField: 'userId',
+            as: 'sellerProfile'
+          }
+        },
+        { $unwind: '$seller' },
+        {
+          $unwind: {
+            path: '$sellerProfile',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            description: 1,
+            images: 1,
+            category: 1,
+            priceRange: 1,
+            sellerName: '$seller.name',
+            sellerVerified: '$seller.verified',
+            sellerLocation: {
+              $concat: [
+                { $ifNull: ['$sellerProfile.address.city', ''] },
+                ', ',
+                { $ifNull: ['$sellerProfile.address.state', ''] }
+              ]
+            },
+            companyName: '$sellerProfile.companyName',
+            companyLogo: '$sellerProfile.companyLogo',
+            sellerId: '$seller._id',
+            isActive: 1
+          }
+        },
+        { $limit: parseInt(limit) }
+      ];
+
+      let fuzzyProducts = await Product.aggregate(fuzzyPipeline);
+
+      if (fuzzyProducts.length > 0) {
+        products = fuzzyProducts;
+        countResult = [{ total: products.length }]; // approximate
+      } else {
+        // Fallback 2: Category Spelling Correction (Levenshtein)
+        console.log(`No regex match for "${search}". Checking category spelling...`);
+
+        const allCategories = await Product.distinct('category', { isActive: true });
+        let bestMatch = null;
+        let minDistance = Infinity;
+
+        allCategories.forEach(cat => {
+          const dist = levenshteinDistance(search.toLowerCase(), cat.toLowerCase());
+          // Allow distance of 2 or 3 depending on length
+          const threshold = cat.length < 5 ? 1 : 3;
+          if (dist <= threshold && dist < minDistance) {
+            minDistance = dist;
+            bestMatch = cat;
+          }
+        });
+
+        if (bestMatch) {
+          console.log(`Found category correction: "${search}" -> "${bestMatch}"`);
+          // Fetch products for this category
+          const catPipeline = [
+            { $match: { isActive: true, category: bestMatch } },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'sellerId',
+                foreignField: '_id',
+                as: 'seller'
+              }
+            },
+            {
+              $lookup: {
+                from: 'sellerprofiles',
+                localField: 'sellerId',
+                foreignField: 'userId',
+                as: 'sellerProfile'
+              }
+            },
+            { $unwind: '$seller' },
+            {
+              $unwind: {
+                path: '$sellerProfile',
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            { $limit: parseInt(limit) },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                images: 1,
+                category: 1,
+                priceRange: 1,
+                sellerName: '$seller.name',
+                sellerVerified: '$seller.verified',
+                sellerLocation: {
+                  $concat: [
+                    { $ifNull: ['$sellerProfile.address.city', ''] },
+                    ', ',
+                    { $ifNull: ['$sellerProfile.address.state', ''] }
+                  ]
+                },
+                companyName: '$sellerProfile.companyName',
+                companyLogo: '$sellerProfile.companyLogo',
+                sellerId: '$seller._id',
+                isActive: 1
+              }
+            }
+          ];
+
+          products = await Product.aggregate(catPipeline);
+          countResult = [{ total: products.length }];
+        }
+      }
+    }
+
+
     const total = countResult.length > 0 ? countResult[0].total : 0;
-    
+
     res.json({
       products,
       totalPages: Math.ceil(total / limit),
@@ -258,11 +428,11 @@ router.get('/categories', async (req, res) => {
 router.get('/search-suggestions', async (req, res) => {
   try {
     const { q } = req.query;
-    
+
     if (!q || q.length < 2) {
       return res.json([]);
     }
-    
+
     const suggestions = await Product.aggregate([
       {
         $match: {
@@ -282,7 +452,7 @@ router.get('/search-suggestions', async (req, res) => {
       },
       { $limit: 10 }
     ]);
-    
+
     // Extract unique suggestions
     const uniqueSuggestions = new Set();
     suggestions.forEach(product => {
@@ -293,8 +463,51 @@ router.get('/search-suggestions', async (req, res) => {
         uniqueSuggestions.add(product.category);
       }
     });
-    
+
     res.json(Array.from(uniqueSuggestions).slice(0, 8));
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /api/products/:id/related
+// @desc    Get related products by category
+// @access  Public
+router.get('/:id/related', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the original product to get its category
+    const originalProduct = await Product.findById(id);
+    if (!originalProduct) {
+      return res.status(404).json({ msg: 'Product not found' });
+    }
+
+    // 2. Find other products in the same category
+    const relatedProducts = await Product.aggregate([
+      {
+        $match: {
+          isActive: true,
+          category: originalProduct.category,
+          _id: { $ne: new mongoose.Types.ObjectId(id) } // Exclude current product
+        }
+      },
+      { $sample: { size: 8 } }, // Randomly select 8 products
+      {
+        $project: {
+          title: 1,
+          images: 1,
+          category: 1,
+          priceRange: 1,
+          averageRating: 1,
+          ratingsCount: 1,
+          description: 1
+        }
+      }
+    ]);
+
+    res.json(relatedProducts);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -325,11 +538,11 @@ router.get('/:id', async (req, res) => {
         }
       },
       { $unwind: '$seller' },
-      { 
-        $unwind: { 
-          path: '$sellerProfile', 
-          preserveNullAndEmptyArrays: true 
-        } 
+      {
+        $unwind: {
+          path: '$sellerProfile',
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $project: {
@@ -359,11 +572,11 @@ router.get('/:id', async (req, res) => {
         }
       }
     ]);
-    
+
     if (!product || product.length === 0) {
       return res.status(404).json({ msg: 'Product not found' });
     }
-    
+
     res.json(product[0]);
   } catch (err) {
     console.error(err.message);
@@ -470,10 +683,10 @@ router.post('/:id/reviews',
         product.ratingsCount === 0
           ? 0
           : Number(
-              (
-                product.reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / product.ratingsCount
-              ).toFixed(2)
-            );
+            (
+              product.reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / product.ratingsCount
+            ).toFixed(2)
+          );
 
       await product.save();
       return res.json({
@@ -509,3 +722,40 @@ router.get('/:id/reviews', async (req, res) => {
 });
 
 export default router;
+
+// Helper: Levenshtein Distance for string similarity
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+
+  // increment along the first column of each row
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  // increment each column in the first row
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill in the rest of the matrix
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          Math.min(
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j] + 1 // deletion
+          )
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}

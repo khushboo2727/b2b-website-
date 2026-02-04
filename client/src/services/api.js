@@ -38,7 +38,9 @@ export const productAPI = {
   getReviews: (id) => api.get(`/products/${id}/reviews`),
   addReview: (id, data) => api.post(`/products/${id}/reviews`, data),
   getSearchSuggestions: (q) => api.get('/products/search-suggestions', { params: { q } }),
+  getRelated: (id) => api.get(`/products/${id}/related`),
 };
+
 
 export const leadAPI = {
   create: (leadData) => api.post('/leads', leadData),
